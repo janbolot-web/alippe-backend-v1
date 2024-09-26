@@ -1,6 +1,7 @@
 import Router from "express";
 import * as UserController from "../controllers/UserController.js";
 import * as CourseController from "../controllers/CourseController.js";
+import * as BookController from "../controllers/BookController.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
 import checkAuth from "../middleware/authMiddleware.js";
 
@@ -53,5 +54,12 @@ router.get("/getVersion", CourseController.getVersion);
 
 router.post("/fetchChatgpt", UserController.fetchChatgpt);
 router.post("/generatePdf", UserController.generatePdf);
+
+router.get("/getAllBooks", BookController.getAllBooks);
+router.get("/getBooksForCategory", BookController.getBooksForCategory);
+router.get("/searchBooks", BookController.searchBooks);
+router.get("/getMyBooks", BookController.getMyBooks);
+
+router.post("/setBookToUser", BookController.setBookToUser);
 
 export default router;

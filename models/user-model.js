@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const UserSchema = new mongoose.Schema(
   {
     phone: { type: Number, unique: true },
-    email: { type: String},
+    email: { type: String },
     name: { type: String },
     password: { type: String },
     phoneNumber: {
@@ -24,6 +24,12 @@ const UserSchema = new mongoose.Schema(
             description: { type: String },
           },
         ],
+      },
+    ],
+    books: [
+      {
+        type: mongoose.Schema.Types.ObjectId, // Ссылка на модель Book
+        ref: "Book", // Указываем на модель Book
       },
     ],
     roles: [{ type: String, ref: "Role" }],
