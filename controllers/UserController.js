@@ -131,7 +131,7 @@ export const setAvatar = async (req, res) => {
     const userData = new UserDto(user);
     console.log("DTO", userData);
     console.log("Документ успешно обновлен:", user);
-  
+
     res.json({
       data: userData,
       message: "Вы обновили фото профилья!",
@@ -283,7 +283,10 @@ export const getMe = async (req, res) => {
     }
     const UserData = new UserDto(user);
     console.log(UserData);
-    res.json(UserData);
+    res.json({
+      data: UserData,
+      message: "Вы обновили фото профилья!",
+    });
   } catch (e) {
     console.log(e);
     res.status(500).json({
