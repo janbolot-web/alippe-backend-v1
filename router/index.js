@@ -9,6 +9,7 @@ const router = new Router();
 
 router.post("/auth/start-verification", UserController.startVerification);
 router.post("/auth/verify-code", UserController.verifyCode);
+router.post("/auth/set-avatar", UserController.setAvatar);
 router.patch("/auth/update-data", UserController.setUserData);
 router.post("/auth/register", UserController.register);
 router.post("/auth/login", UserController.login);

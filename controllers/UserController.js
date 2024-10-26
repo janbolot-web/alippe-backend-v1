@@ -108,6 +108,38 @@ export const verifyCode = async (req, res) => {
   }
 };
 
+export const setAvatar = async (req, res) => {
+  try {
+    const { userId, avatarUrl } = req.body;
+
+    const updateData = {
+      $set: {
+        avatarUrl: avatarUrl,
+      },
+    };
+    const user = await userModel.findByIdAndUpdate(userId, updateData, {
+      new: true,
+    });
+    const token = jwt.sign(
+      {
+        _id: user._id,
+        roles: user.roles,
+      },
+      "secret1234",
+      { expiresIn: "30d" }
+    );
+    const userData = new UserDto(user);
+    console.log("DTO", userData);
+    console.log("Документ успешно обновлен:", user);
+  
+    res.json({
+      data: userData,
+      message: "Вы обновили фото профилья!",
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
 export const setUserData = async (req, res) => {
   try {
     const name = req.body.name;
@@ -136,10 +168,7 @@ export const setUserData = async (req, res) => {
     console.log("DTO", userData);
     console.log("Документ успешно обновлен:", user);
     res.json({
-      data: {
-        userData,
-        token,
-      },
+      userData,
       message: "Вы успешно авторизовались!",
     });
   } catch (error) {
@@ -265,8 +294,9 @@ export const getMe = async (req, res) => {
 
 export const getMeMobile = async (req, res) => {
   try {
-    console.log();
     const user = await userModel.findById(req.query.userId).populate("courses");
+    console.log(req.query);
+
     if (!user) {
       return res.status(404).json({ message: "Пользователь не найден" });
     }
