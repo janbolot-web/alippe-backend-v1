@@ -77,7 +77,7 @@ export const verifyCode = async (req, res) => {
       name: "",
       phoneNumber: phoneNumber,
       isDataUser: false,
-      avatarUrl: "h",
+      avatarUrl: "",
       email: new Date(),
       roles: [userRole.value],
       // Другие поля пользователя
@@ -197,7 +197,7 @@ export const register = async (req, res) => {
       phone,
       password: hashPassword,
       name,
-      avatarUrl: "f",
+      avatarUrl: "",
       email: Date.now().toString(),
       roles: [userRole.value],
     });

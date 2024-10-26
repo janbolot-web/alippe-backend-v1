@@ -4,7 +4,7 @@ const AuthorSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     profession: { type: String, required: true },
-    avatarUrl: { type: String,  },
+    avatarUrl: { type: String },
   },
   {
     timestamps: true,
