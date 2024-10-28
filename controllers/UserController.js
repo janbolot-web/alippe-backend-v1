@@ -168,7 +168,10 @@ export const setUserData = async (req, res) => {
     console.log("DTO", userData);
     console.log("Документ успешно обновлен:", user);
     res.json({
-      userData,
+      data: {
+        userData,
+        token,
+      },
       message: "Вы успешно авторизовались!",
     });
   } catch (error) {
@@ -283,10 +286,7 @@ export const getMe = async (req, res) => {
     }
     const UserData = new UserDto(user);
     console.log(UserData);
-    res.json({
-      data: UserData,
-      message: "Вы обновили фото профилья!",
-    });
+    res.json(UserData);
   } catch (e) {
     console.log(e);
     res.status(500).json({
