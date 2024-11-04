@@ -20,6 +20,9 @@ router.get("/getUsers", UserController.getUsers);
 router.get("/getUserById/:id", UserController.getUserById);
 router.get("/users/search/:key", UserController.searchUser);
 router.delete("/removeUser/:id", UserController.deleteUser);
+router.get("/", (req, res) => {
+  res.send("API работает!");
+});
 
 router.post(
   "/createCourse",

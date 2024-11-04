@@ -30,7 +30,10 @@
     "nodemailer": "^6.8.0",
     "openai": "^4.47.1",
     "pdfkit": "^0.15.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "http": "^0.0.1-security",
+    "socket.io": "^4.7.5",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@flydotio/dockerfile": "^0.5.9",

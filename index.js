@@ -1,34 +1,25 @@
-import express from "express";
-import mongoose from "mongoose";
-import cors from "cors";
 import dotenv from "dotenv";
-
-import router from "./router/index.js";
-
-const PORT = process.env.PORT || 5001;
-const app = express();
+import http from "http";
+import mongoose from "mongoose";
+import app from "./app.js";
+import { setupSocket } from "./socket.js";
 
 dotenv.config();
-app.use(cors());
-app.use(express.json());
 
-app.use("/api", router);
-
+const PORT = process.env.PORT || 5001;
+const server = http.createServer(app);
+setupSocket(server);
 
 const start = async () => {
   try {
     await mongoose.set("strictQuery", false);
-    await mongoose.connect(
-      process.env.MONGODB_URI
-    );
-    app.listen(PORT, () => {
-      console.log(`server started on port ${process.env.PORT}`);
+    await mongoose.connect(process.env.MONGODB_URI);
+    server.listen(PORT, () => {
+      console.log(`Server started on port ${PORT}`);
     });
   } catch (e) {
-    console.log(e);
+    console.error(e);
   }
 };
-
-
 
 start();
