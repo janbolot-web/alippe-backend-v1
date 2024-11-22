@@ -12,7 +12,6 @@ setupSocket(server);
 
 const start = async () => {
   try {
-    await mongoose.set("strictQuery", false);
     await mongoose.connect(process.env.MONGODB_URI);
     server.listen(PORT, () => {
       console.log(`Server started on port ${PORT}`);

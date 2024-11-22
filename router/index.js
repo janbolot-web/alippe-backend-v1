@@ -21,6 +21,7 @@ router.get("/getUserById/:id", UserController.getUserById);
 router.get("/users/search/:key", UserController.searchUser);
 router.delete("/removeUser/:id", UserController.deleteUser);
 router.get("/", (req, res) => {
+  console.log("API работает!");
   res.send("API работает!");
 });
 
