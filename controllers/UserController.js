@@ -466,7 +466,6 @@ export const fetchChatgpt = async (req, res) => {
       .catch((error) => {
         console.error("Произошла ошибка:", error); // обработка ошибки
       });
-    console.log(`response ${process.env.OPEN_AI}`);
     res.json({
       response: response.data.choices[0].message.content,
       statusCode: response.status,
