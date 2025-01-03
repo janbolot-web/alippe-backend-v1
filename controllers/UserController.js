@@ -459,7 +459,7 @@ export const fetchChatgpt = async (req, res) => {
       },
     };
     const response = await axios
-      .post("https://api.openai.com/v1/chat/completions", prompt, config)
+      .post("https://models.inference.ai.azure.com/chat/completions", prompt, config)
       .then((response) => {
         return response;
       })
