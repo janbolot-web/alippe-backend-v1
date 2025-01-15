@@ -14,6 +14,7 @@ import { log } from "console";
 // Метод для начала процесса верификации
 let verificationCodes = {};
 dotenv.config();
+import { Document, Packer, Paragraph, TextRun } from "docx";
 
 export const startVerification = async (req, res) => {
   try {
@@ -459,13 +460,42 @@ export const fetchChatgpt = async (req, res) => {
       },
     };
     const response = await axios
-      .post("https://models.inference.ai.azure.com/chat/completions", prompt, config)
+      .post(
+        "https://models.inference.ai.azure.com/chat/completions",
+        prompt,
+        config
+      )
       .then((response) => {
         return response;
       })
       .catch((error) => {
         console.error("Произошла ошибка:", error); // обработка ошибки
       });
+
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun("Кыргыз тилинде текст."),
+                new TextRun({
+                  text: " Бул классикалык сабак планынын мисалы.",
+                  bold: true,
+                }),
+              ],
+            }),
+          ],
+        },
+      ],
+    });
+
+    Packer.toBuffer(doc).then((buffer) => {
+      fs.writeFileSync("LessonPlan.docx", buffer);
+      console.log("Word файл түзүлдү!");
+    });
+
     res.json({
       response: response.data.choices[0].message.content,
       statusCode: response.status,
