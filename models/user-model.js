@@ -34,6 +34,22 @@ const UserSchema = new mongoose.Schema(
     ],
     roles: [{ type: String, ref: "Role" }],
     avatarUrl: { type: String, required: false },
+    subscription: [
+      {
+        title: String,
+        isActive: Boolean,
+        expiresAt: Date,
+        planPoint: Number,
+        quizPoint: Number,
+      },
+    ],
+    purchaseHistory: [
+      {
+        type: mongoose.Schema.Types.ObjectId, // Ссылка на модель Book
+        ref: "PurchaseHistory", // Указываем на модель Book
+      },
+    ],
+    points: { type: Number, default: 0 },
   },
   {
     timestamps: true,

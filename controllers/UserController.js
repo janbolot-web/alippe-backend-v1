@@ -4,17 +4,14 @@ import bcrypt from "bcrypt";
 import userModel from "../models/user-model.js";
 import UserDto from "../dtos/user.dto.js";
 import roleModel from "../models/role-model.js";
-import UserDtoMob from "../dtos/userMob.dto.js";
 import axios from "axios";
-import OpenAI from "openai";
 import dotenv from "dotenv";
 import pdfkit from "pdfkit";
 import fs from "fs";
-import { log } from "console";
-// Метод для начала процесса верификации
+import { Document, Packer, Paragraph, TextRun } from "docx";
+
 let verificationCodes = {};
 dotenv.config();
-import { Document, Packer, Paragraph, TextRun } from "docx";
 
 export const startVerification = async (req, res) => {
   try {
@@ -299,12 +296,12 @@ export const getMe = async (req, res) => {
 export const getMeMobile = async (req, res) => {
   try {
     const user = await userModel.findById(req.query.userId).populate("courses");
-    console.log(req.query);
 
     if (!user) {
       return res.status(404).json({ message: "Пользователь не найден" });
     }
     const UserData = new UserDto(user);
+    console.log("UserData", UserData);
 
     res.json(UserData);
   } catch (e) {

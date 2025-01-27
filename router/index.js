@@ -2,6 +2,9 @@ import Router from "express";
 import * as UserController from "../controllers/UserController.js";
 import * as CourseController from "../controllers/CourseController.js";
 import * as BookController from "../controllers/BookController.js";
+import * as ProductController from "../controllers/ProductController.js";
+import * as CategoryController from "../controllers/CategoryController.js";
+import * as PaymentController from "../controllers/PaymentController.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
 import checkAuth from "../middleware/authMiddleware.js";
 
@@ -66,5 +69,38 @@ router.get("/searchBooks", BookController.searchBooks);
 router.get("/getMyBooks", BookController.getMyBooks);
 
 router.post("/setBookToUser", BookController.setBookToUser);
+
+//  PRODUCTS ===================================================================
+
+router.get("/getAllProducts", ProductController.getAllProducts);
+router.post("/createProduct/:storeId", ProductController.createProduct);
+router.get("/getAllShops", ProductController.getAllShops);
+router.post("/createShop", ProductController.createShop);
+router.post("/shop/:storeId/products", ProductController.addProductToShop);
+router.post("/image-upload", ProductController.uploadFile);
+router.delete("/stores/:id", ProductController.deleteStore);
+router.get("/getStoreById/:id", ProductController.getStoreById);
+
+//  CATEGORY ===================================================================
+
+router.post("/createCategory", CategoryController.createCategory);
+router.get("/getAllCategories", CategoryController.getAllCategories);
+router.get("/getCategoryById/:id", CategoryController.getCategoryById);
+// router.put('/:id', CategoryController.updateCategory);
+router.delete("/:id", CategoryController.deleteCategory);
+
+router.post("/pay", PaymentController.createPayment);
+router.post("/statusPayment", PaymentController.getStatusPayment);
+
+// app.get("/.well-known/apple-app-site-association", (req, res) => {
+//   res.setHeader("Content-Type", "application/json");
+//   fs.readFile("path/to/apple-app-site-association", "utf8", (err, data) => {
+//     if (err) {
+//       res.status(500).send("Error loading file");
+//       return;
+//     }
+//     res.send(data);
+//   });
+// });
 
 export default router;

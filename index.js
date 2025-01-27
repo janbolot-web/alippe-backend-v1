@@ -3,6 +3,8 @@ import http from "http";
 import mongoose from "mongoose";
 import app from "./app.js";
 import { setupSocket } from "./socket.js";
+import schedule from "node-schedule";
+import userModel from "./models/user-model.js";
 
 dotenv.config();
 
@@ -20,5 +22,27 @@ const start = async () => {
     console.error(e);
   }
 };
+
+schedule.scheduleJob("0 0 * * *", async () => {
+  const now = new Date();
+
+  const result = await userModel.updateMany(
+    { "subscription.isActive": true, "subscription.expiresAt": { $lte: now } },
+    {
+      $set: {
+        "subscription.$[elem].isActive": false,
+      },
+    },
+    {
+      arrayFilters: [
+        { "elem.isActive": true, "elem.expiresAt": { $lte: now } },
+      ],
+    }
+  );
+
+  console.log(
+    `Обновлено пользователей с истекшей подпиской: ${result.modifiedCount}`
+  );
+});
 
 start();
