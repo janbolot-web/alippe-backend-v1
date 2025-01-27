@@ -4,8 +4,8 @@ import AWS from "aws-sdk";
 import config from "../config/s3.config.js";
 
 const S3 = new AWS.S3({
-  accessKeyId: config.AWS_ACCESS_KEY_ID,
-  secretAccessKey: config.AWS_SECRET_ACCESS_KEY,
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.config.AWS_SECRET_ACCESS_KEY,
 });
 
 const upload = multer({
