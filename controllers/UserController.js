@@ -9,6 +9,12 @@ import dotenv from "dotenv";
 import pdfkit from "pdfkit";
 import fs from "fs";
 import { Document, Packer, Paragraph, TextRun } from "docx";
+import AWS from "aws-sdk";
+import path from "path";
+import puppeteer from "puppeteer";
+import { marked } from "marked";
+import htmlToDocx from "html-to-docx";
+import { v4 as uuidv4 } from "uuid";
 
 let verificationCodes = {};
 dotenv.config();
@@ -323,78 +329,6 @@ export const getUsers = async (req, res) => {
   }
 };
 
-// export const getUsersTest = async (req, res) => {
-//   try {
-//     const users = await userModel.find();
-//     let userId = [];
-//     users.map((user) =>
-//       user.courses.map((course) => {
-//         if (course == null) return;
-//         course.lessons.map((lesson) => {
-//           if (lesson.name == "Киришүү сабагы") {
-//             userId.push(user.id);
-//           }
-//           return;
-//         });
-//       })
-//     );
-//     userId.map(async (user) => {
-//       const userData = await userModel.findById(user);
-//       let newData = [];
-//       userData.courses.map((course, index) => {
-//         let lessonsData = [];
-//         course.lessons.map((lesson) => {
-//           lessonsData.push({
-//             name: lesson.name,
-//             videoUrl: lesson.videoUrl,
-//             description: lesson.description,
-//             youtubeUrl:
-//               lesson.name === "Киришүү сабагы"
-//                 ? "https://youtu.be/qJ3cUsHClQA"
-//                 : lesson.name === "Алгачкы окуучуларды окутуу боюнча..."
-//                 ? "https://youtu.be/cayiHYUM32g"
-//                 : lesson.name == "\"Самореализация \""
-//                 ? "https://youtu.be/XQc_tTRcZaU"
-//                 : lesson.name ===
-//                   "Шар окуунун алгачкы сабагы жана алгачкы методикалары."
-//                 ? "https://youtu.be/WyEpVLqOvss"
-//                 : lesson.name === "Шар окуу китебинин мазмуну."
-//                 ? "https://youtu.be/jS67AbOxgOo"
-//                 : lesson.name ===
-//                   " Шар окуу китебиндеги көнүгүүлөрдүн инструкциясы..."
-//                 ? "https://youtu.be/kucjktQHeZY"
-//                 : lesson.name === "Шар окуу методикалары."
-//                 ? "https://youtu.be/erbAP7q4QSo"
-//                 : lesson.name ===
-//                   "Баланын окуудагы көйгөйлөрүн жоюуга арналган методикалар."
-//                 ? "https://youtu.be/uvi8dlnPRQI"
-//                 : lesson.name ===
-//                   " Баланын окуу ылдамдыгын арттыруучу методикалар."
-//                 ? "https://youtu.be/tzNhjOftLU8"
-//                 : lesson.name === "Баланын түшүнүгүн арттырууга иштөө." ??
-//                   "https://youtu.be/0Vft7qmPdzU",
-//           });
-//         });
-//         newData.push({
-//           name: course.name,
-//           courseId: course.courseId,
-//           price: course.price,
-//           isAccess: course.isAccess,
-//           lessons: lessonsData,
-//         });
-//       });
-//       const updatedData = await userModel.findByIdAndUpdate(user, {
-//         courses: newData,
-//       });
-//       res.json(updatedData);
-//     });
-
-//     res.json({ message: "ok" });
-//   } catch (e) {
-//     console.log(e);
-//   }
-// };
-
 export const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -435,10 +369,10 @@ export const deleteUser = async (req, res) => {
 };
 
 export const fetchChatgpt = async (req, res) => {
-  console.log("ok");
   try {
     const data = req.body.response;
     // console.log("!!!!!!!!!data",data);
+    console.log(data);
 
     const prompt = {
       model: "gpt-4o",
@@ -458,7 +392,7 @@ export const fetchChatgpt = async (req, res) => {
     };
     const response = await axios
       .post(
-        "https://models.inference.ai.azure.com/chat/completions",
+        "https://workers-playground-shiny-haze-2f78jjjj.janbolotcode.workers.dev/v1/chat/completions",
         prompt,
         config
       )
@@ -469,30 +403,6 @@ export const fetchChatgpt = async (req, res) => {
         console.error("Произошла ошибка:", error); // обработка ошибки
       });
 
-    const doc = new Document({
-      sections: [
-        {
-          properties: {},
-          children: [
-            new Paragraph({
-              children: [
-                new TextRun("Кыргыз тилинде текст."),
-                new TextRun({
-                  text: " Бул классикалык сабак планынын мисалы.",
-                  bold: true,
-                }),
-              ],
-            }),
-          ],
-        },
-      ],
-    });
-
-    Packer.toBuffer(doc).then((buffer) => {
-      fs.writeFileSync("LessonPlan.docx", buffer);
-      console.log("Word файл түзүлдү!");
-    });
-
     res.json({
       response: response.data.choices[0].message.content,
       statusCode: response.status,
@@ -502,31 +412,132 @@ export const fetchChatgpt = async (req, res) => {
     res.status(404).json({ message: "Не удалось удалить пользователья" });
   }
 };
-export const generatePdf = async (req, res) => {
+
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID, // Ensure these are set in your environment
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  // region: process.env.AWS_REGION, // e.g. "us-east-1"
+});
+
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
+
+const uploadToS3 = async (filePath, fileName, type) => {
+  const fileContent = fs.readFileSync(filePath);
+
+  const params = {
+    Bucket: process.env.AWS_BUCKET_NAME, // Your S3 bucket name
+    Key: `files/${fileName}`, // S3 object key (you can adjust the path in S3 as needed)
+    Body: fileContent,
+    ContentType: type == "pdf" ? "application/pdf" : "application/word", // Adjust content type based on file
+  };
+
   try {
-    const doc = new pdfkit();
-
-    // Устанавливаем заголовок ответа для указания типа содержимого как PDF
-    res.setHeader("Content-Type", "application/pdf");
-    // Устанавливаем заголовок ответа для указания имени файла
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="user_data.pdf"'
-    );
-
-    // Перенаправляем вывод PDF в ответ HTTP
-    doc.pipe(res);
-    doc.font("fonts/RobotoFlex-Regular.ttf");
-
-    // Добавляем информацию о пользователе в PDF
-    doc.text(`Жанюолот`);
-
-    // Добавляем информацию о курсах пользователя в PDF
-
-    // Завершаем документ и ответ
-    doc.end();
+    const data = await s3.upload(params).promise();
+    console.log("File uploaded successfully:", data.Location);
+    return data.Location; // Return the URL of the uploaded file
   } catch (error) {
-    console.error("Error generating PDF:", error);
-    res.status(500).json({ success: false, message: "Error generating PDF" });
+    console.error("Error uploading file to S3:", error);
+    throw error;
   }
 };
+
+function ensureTempDirectoryExists() {
+  const tempPath = path.join(__dirname, "temp");
+  if (!fs.existsSync(tempPath)) {
+    fs.mkdirSync(tempPath, { recursive: true });
+  }
+}
+
+export const downloadPdf = async (req, res) => {
+  ensureTempDirectoryExists();
+
+  const { markdown } = req.body;
+  const fileName = `${uuidv4()}.pdf`;
+  const filePath = path.join(__dirname, "temp", fileName);
+
+  // Convert Markdown to HTML
+  const htmlContent = `
+    <html>
+      <head>
+        <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+        <style>
+          body { font-family: 'Lato', sans-serif; padding: 20px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid black; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+        </style>
+      </head>
+      <body>
+        ${marked(markdown)}
+      </body>
+    </html>
+  `;
+
+  // Use Puppeteer to convert HTML to PDF
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+  await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+  await page.pdf({ path: filePath, format: "A4" });
+  await browser.close();
+
+  const type = "pdf";
+
+  // Upload to S3
+  const s3Url = await uploadToS3(filePath, fileName, type);
+
+  // Send response
+  res.json({ message: "PDF generated and uploaded", fileUrl: s3Url });
+};
+
+export const downloadWord = async (req, res) => {
+  ensureTempDirectoryExists();
+
+  const { markdown } = req.body;
+  const fileName = `${uuidv4()}.docx`;
+  const filePath = path.join(__dirname, "temp", fileName);
+
+  // Convert Markdown to HTML
+  const htmlContent = marked(markdown);
+
+  // Generate DOCX from HTML
+  const docxBuffer = await htmlToDocx(htmlContent);
+
+  // Write the DOCX file to disk temporarily
+  fs.writeFileSync(filePath, docxBuffer);
+
+  const type = "word";
+
+  // Upload to S3
+  const s3Url = await uploadToS3(filePath, fileName, type);
+
+  // Send response
+  res.json({ message: "DOCX generated and uploaded", fileUrl: s3Url });
+};
+// export const generatePdf = async (req, res) => {
+//   try {
+//     const doc = new pdfkit();
+
+//     // Устанавливаем заголовок ответа для указания типа содержимого как PDF
+//     res.setHeader("Content-Type", "application/pdf");
+//     // Устанавливаем заголовок ответа для указания имени файла
+//     res.setHeader(
+//       "Content-Disposition",
+//       'attachment; filename="user_data.pdf"'
+//     );
+
+//     // Перенаправляем вывод PDF в ответ HTTP
+//     doc.pipe(res);
+//     doc.font("fonts/RobotoFlex-Regular.ttf");
+
+//     // Добавляем информацию о пользователе в PDF
+//     doc.text(`Жанюолот`);
+
+//     // Добавляем информацию о курсах пользователя в PDF
+
+//     // Завершаем документ и ответ
+//     doc.end();
+//   } catch (error) {
+//     console.error("Error generating PDF:", error);
+//     res.status(500).json({ success: false, message: "Error generating PDF" });
+//   }
+// };

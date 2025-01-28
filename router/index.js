@@ -61,7 +61,9 @@ router.patch("/addCourseToUser", CourseController.addCourseToUser);
 router.get("/getVersion", CourseController.getVersion);
 
 router.post("/fetchChatgpt", UserController.fetchChatgpt);
-router.post("/generatePdf", UserController.generatePdf);
+router.post("/pdf", UserController.downloadPdf);
+router.post("/word", UserController.downloadWord);
+// router.post("/generatePdf", UserController.generatePdf);
 
 router.get("/getAllBooks", BookController.getAllBooks);
 router.get("/getBooksForCategory", BookController.getBooksForCategory);
