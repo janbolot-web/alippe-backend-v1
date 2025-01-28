@@ -1,7 +1,7 @@
 import multer from "multer";
 import multerS3 from "multer-s3-transform";
 import AWS from "aws-sdk";
-import config from "../config/s3.config.js";
+// import config from "../config/s3.config.js";
 
 const S3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
