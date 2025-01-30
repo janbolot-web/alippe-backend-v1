@@ -4,14 +4,13 @@ import Room from "./models/room.js";
 export const setupSocket = (server) => {
   const io = new Server(server);
 
-
   io.on("connection", (socket) => {
     console.log("connected!");
     socket.on("createRoom", async ({ nickname, response }) => {
       try {
         const data = JSON.parse(response);
         let room = new Room();
-  
+
         let player = {
           socketID: socket.id,
           nickname,
@@ -31,21 +30,50 @@ export const setupSocket = (server) => {
         console.log(error);
       }
     });
+    socket.on("requestRoomState", async ({ roomId }) => {
+      console.log("roomId", roomId);
+      try {
+        let room = await Room.findById(roomId);
+        if (!room) {
+          socket.emit("errorOccured", "Комната не найдена");
+          return;
+        }
+
+        // Проверяем, есть ли игрок с таким socketID в комнате
+        let player = room.players.find((p) => p.socketID === socket.id);
+
+        if (!player) {
+          socket.emit("errorOccured", "Вы не в этой комнате!");
+          return;
+        }
+
+        // Отправляем обновленное состояние комнаты игроку
+        // Данные, которые отправляем, такие же как в joinRoom
+        var roomData = [{ room, playerId: socket.id, player }];
+
+        socket.emit("roomState", roomData);
+
+        console.log(`Игрок ${player.nickname} повторно подключился`);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
     socket.on("joinRoom", async ({ nickname, roomId }) => {
       try {
         if (!roomId.match(/^[0-9a-fA-F]{24}$/)) {
           socket.emit("errorOccured", "please enter a valid code room ID");
           return;
         }
-  
+
         let room = await Room.findById(roomId);
-  
+
         if (room.isJoin) {
           // Проверка на наличие игрока с тем же socketID
           let existingPlayer = room.players.find(
             (player) => player.socketID === socket.id
           );
-  
+
           if (existingPlayer) {
             socket.emit(
               "errorOccured",
@@ -53,7 +81,7 @@ export const setupSocket = (server) => {
             );
             return;
           }
-  
+
           let player = {
             nickname,
             socketID: socket.id, // Уникальный socketID
@@ -79,7 +107,7 @@ export const setupSocket = (server) => {
         console.log(error);
       }
     });
-  
+
     socket.on("startGame", async ({ roomId }) => {
       try {
         if (!roomId.match(/^[0-9a-fA-F]{24}$/)) {
@@ -91,14 +119,14 @@ export const setupSocket = (server) => {
         room.isJoin = false;
         room = await room.save();
         var roomData = [{ room, playerId: null }];
-  
+
         io.to(roomId).emit("updateRoom", room);
         console.log(roomId);
       } catch (error) {
         console.log(error);
       }
     });
-  
+
     socket.on(
       "tap",
       async ({
@@ -123,7 +151,7 @@ export const setupSocket = (server) => {
             correctAnswer: correctAnswer,
           });
           console.log(player.result);
-  
+
           if (correct) {
             if (player) {
               player.points = player.points + points;
@@ -134,7 +162,7 @@ export const setupSocket = (server) => {
             }
             io.to(roomId).emit("updateRoom", room);
           }
-  
+
           io.to(roomId).emit("updateRoom", room);
           await room.save();
         } catch (error) {
@@ -159,7 +187,7 @@ export const setupSocket = (server) => {
           playerId: playerId,
         };
         let player = room.players.find((player) => player.playerType === "X");
-  
+
         // Отправляем обновлённые данные комнаты всем игрокам
         io.to(roomId).emit("updateRoom", room);
         console.log("player ", player.socketID);

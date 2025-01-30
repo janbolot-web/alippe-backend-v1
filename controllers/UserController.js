@@ -447,46 +447,138 @@ function ensureTempDirectoryExists() {
     fs.mkdirSync(tempPath, { recursive: true });
   }
 }
-
 export const downloadPdf = async (req, res) => {
-  ensureTempDirectoryExists();
+  try {
+    // Ensure temporary directory exists
+    ensureTempDirectoryExists();
 
-  const { markdown } = req.body;
-  const fileName = `${uuidv4()}.pdf`;
-  const filePath = path.join(__dirname, "temp", fileName);
+    const { markdown } = req.body;
+    const fileName = `${uuidv4()}.pdf`;
+    const filePath = path.join(__dirname, "temp", fileName);
 
-  // Convert Markdown to HTML
-  const htmlContent = `
+    // Convert Markdown to HTML
+    const htmlContent = `
     <html>
       <head>
         <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
         <style>
-          body { font-family: 'Lato', sans-serif; padding: 20px; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td { border: 1px solid black; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; }
+          body {
+            font-family: 'Lato', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #333;
+            line-height: 1.6;
+          }
+          .content {
+            page-break-before: always;
+          }
+          h1, h2, h3, h4, h5, h6 {
+            color: #2c3e50;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+          }
+          h1 {
+            font-size: 2.5em;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 0.3em;
+          }
+          h2 {
+            font-size: 2em;
+          }
+          h3 {
+            font-size: 1.75em;
+          }
+          p {
+            margin: 0 0 1em;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5em;
+          }
+          th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+          }
+          th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+          }
+          ul, ol {
+            margin: 0 0 1.5em 1.5em;
+            padding: 0;
+          }
+          li {
+            margin-bottom: 0.5em;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 2em;
+          }
+          .header img {
+            max-width: 150px;
+            margin-bottom: 1em;
+          }
+          .footer {
+            text-align: center;
+            font-size: 0.9em;
+            color: #777;
+            margin-top: 2em;
+          }
+          @media print {
+            .content {
+              padding-top: 40px;
+              padding-bottom: 40px;
+            }
+            .footer {
+              position: fixed;
+              bottom: 0;
+              width: 100%;
+            }
+          }
         </style>
       </head>
       <body>
-        ${marked(markdown)}
+      
+        <div class="content">
+          ${marked(markdown)}
+        </div>
+      
       </body>
     </html>
-  `;
+    `;
 
-  // Use Puppeteer to convert HTML to PDF
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-  await page.setContent(htmlContent, { waitUntil: "networkidle0" });
-  await page.pdf({ path: filePath, format: "A4" });
-  await browser.close();
+    // Use Puppeteer to convert HTML to PDF
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: "networkidle0" });
 
-  const type = "pdf";
+    // Add padding to the top and bottom of each page
+    await page.pdf({
+      path: filePath,
+      format: "A4",
+      margin: {
+        top: "40px",
+        bottom: "40px",
+        left: "60px",
+        right: "60px",
+      },
+    });
 
-  // Upload to S3
-  const s3Url = await uploadToS3(filePath, fileName, type);
+    await browser.close();
 
-  // Send response
-  res.json({ message: "PDF generated and uploaded", fileUrl: s3Url });
+    const type = "pdf";
+
+    // Upload to S3
+    const s3Url = await uploadToS3(filePath, fileName, type);
+
+    // Send response
+    res.json({ message: "PDF generated and uploaded", fileUrl: s3Url });
+  } catch (error) {
+    console.error("Error during PDF generation or upload:", error);
+    res.status(500).json({ error: "Error generating or uploading PDF" });
+  }
 };
 
 export const downloadWord = async (req, res) => {
