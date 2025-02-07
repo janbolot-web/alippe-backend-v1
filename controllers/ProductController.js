@@ -50,8 +50,6 @@ const filterProducts = (query, products) => {
       regex.test(product.category) ||
       regex.test(product.description)
   );
-  // .sort({ createdAt: -1 });
-  // console.log(products);
 };
 
 // export const searchProduct = async (req, res) => {
@@ -121,6 +119,7 @@ export const getAllShops = async (req, res) => {
       .populate("products")
       .sort({ createdAt: -1 });
     res.status(200).json(stores);
+    console.log(stores);
   } catch (error) {
     res
       .status(500)

@@ -9,6 +9,7 @@ import userCoursesModel from "../models/userCourses-model.js";
 import { StoryDto } from "../dtos/stories.dto.js";
 import storyModel from "../models/story-model.js";
 import versionModel from "../models/version-model.js";
+import UserDto from "../dtos/user.dto.js";
 
 export const getVersion = async (req, res) => {
   try {

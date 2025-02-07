@@ -1,4 +1,5 @@
 import categoryModel from "../models/category-model.js";
+import productModel from "../models/product-model.js";
 
 // Создать новую категорию
 export const createCategory = async (req, res) => {
@@ -29,6 +30,26 @@ export const getAllCategories = async (req, res) => {
   }
 };
 
+export const getProductsByCategory = async (req, res) => {
+  try {
+    const { id } = req.params; // Получаем ID категории из URL
+    console.log(id);
+    // Проверяем, существует ли категория
+    const category = await categoryModel.findById(id);
+    if (!category) {
+      return res.status(404).json({ message: "Категория не найдена" });
+    }
+
+    // Получаем все продукты, относящиеся к этой категории
+    const products = await productModel
+      .find({ category: id })
+      .populate("category").sort({ createdAt: -1 });
+    res.status(200).json(products);
+  } catch (error) {
+    console.error("Ошибка получения продуктов по категории:", error);
+    res.status(500).json({ message: "Ошибка сервера" });
+  }
+};
 // Получить категорию по ID
 export const getCategoryById = async (req, res) => {
   try {

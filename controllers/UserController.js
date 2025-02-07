@@ -370,43 +370,59 @@ export const deleteUser = async (req, res) => {
 
 export const fetchChatgpt = async (req, res) => {
   try {
-    const data = req.body.response;
-    // console.log("!!!!!!!!!data",data);
-    console.log(data);
+    const { message, userId } = req.body;
+    console.log(message);
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
+    }
 
-    const prompt = {
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "user",
-          content: data,
+    const aiSubscription = user.subscription.find((sub) => sub.title === "ai");
+    if (aiSubscription && aiSubscription.planPoint > 0) {
+      // Отправка запроса в GPT-4
+      // console.log("!!!!!!!!!data",data);
+
+      const prompt = {
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: message,
+          },
+        ],
+      };
+
+      const config = {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.OPEN_AI}`,
         },
-      ],
-    };
+      };
+      const response = await axios
+        .post(
+          "https://workers-playground-shiny-haze-2f78jjjj.janbolotcode.workers.dev/v1/chat/completions",
+          prompt,
+          config
+        )
+        .then((response) => {
+          return response;
+        })
+        .catch((error) => {
+          console.error("Произошла ошибка:", error); // обработка ошибки
+        });
 
-    const config = {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPEN_AI}`,
-      },
-    };
-    const response = await axios
-      .post(
-        "https://workers-playground-shiny-haze-2f78jjjj.janbolotcode.workers.dev/v1/chat/completions",
-        prompt,
-        config
-      )
-      .then((response) => {
-        return response;
-      })
-      .catch((error) => {
-        console.error("Произошла ошибка:", error); // обработка ошибки
+      aiSubscription.planPoint -= 1;
+      await user.save();
+
+      const UserData = new UserDto(user);
+      console.log(UserData);
+
+      res.json({
+        response: response.data.choices[0].message.content,
+        userData: UserData,
+        statusCode: response.status,
       });
-
-    res.json({
-      response: response.data.choices[0].message.content,
-      statusCode: response.status,
-    });
+    }
   } catch (error) {
     console.log(error);
     res.status(404).json({ message: "Не удалось удалить пользователья" });
@@ -605,6 +621,126 @@ export const downloadWord = async (req, res) => {
   // Send response
   res.json({ message: "DOCX generated and uploaded", fileUrl: s3Url });
 };
+
+export const sendMessageToChatGPT = async (req, res) => {
+  const { message, userId } = req.body;
+
+  const apiUrl =
+    "https://workers-playground-shiny-haze-2f78jjjj.janbolotcode.workers.dev/v1/chat/completions";
+  const bearerToken = process.env.OPEN_AI;
+
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${bearerToken}`,
+  };
+
+  try {
+    const user = await userModel.findById(userId);
+    console.log(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
+    }
+
+    const aiSubscription = user.subscription.find((sub) => sub.title === "ai");
+    if (aiSubscription && aiSubscription.quizPoint > 0) {
+      // Отправка запроса в GPT-4
+      const response = await axios.post(
+        apiUrl,
+        {
+          model: "gpt-4o",
+          messages: [{ role: "user", content: message }],
+          temperature: 0.7,
+        },
+        { headers }
+      );
+
+      if (response.status === 200) {
+        aiSubscription.quizPoint -= 1;
+        await user.save();
+
+        let data = response.data?.choices?.[0]?.message?.content;
+        if (!data) {
+          return res.status(400).json({ message: "Ошибка обработки данных" });
+        }
+
+        // Удаляем ```json в начале и ``` в конце, если они есть
+        data = data.trim();
+        if (data.startsWith("```json")) {
+          data = data.substring(7); // Удаляем "```json\n"
+        }
+        if (data.endsWith("```")) {
+          data = data.substring(0, data.length - 3); // Удаляем "```"
+        }
+
+        let questions;
+        try {
+          const parsed = JSON.parse(data.trim());
+
+          if (parsed && parsed.questions) {
+            questions = parsed.questions;
+          } else {
+            throw new Error("Некорректный формат данных");
+          }
+        } catch (error) {
+          return res
+            .status(400)
+            .json({ message: "Ошибка парсинга JSON", error });
+        }
+
+        // Функция для перемешивания ответов
+        const shuffleAnswers = (questions) => {
+          questions.forEach((question) => {
+            if (Array.isArray(question.answers)) {
+              question.answers.sort(() => Math.random() - 0.5);
+            }
+          });
+        };
+
+        shuffleAnswers(questions);
+        const UserData = new UserDto(user);
+
+        res.json({ questions, UserData });
+      } else {
+        print("Ошибка запроса к GPT-4");
+        res.status(500).json({ message: "Ошибка запроса к GPT-4" });
+      }
+    } else {
+      return res.status(400).json({ message: "Недостаточно quizPoint" });
+    }
+  } catch (error) {
+    console.error("Ошибка:", error);
+    res.status(500).json({ message: "Ошибка сервера", error });
+  }
+};
+
+export const addGptRequestToUser = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    // Находим пользователя по ID
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
+    }
+
+    // Ищем подписку с title "ai"
+    const aiSubscription = user.subscription.find((sub) => sub.title === "ai");
+
+    if (aiSubscription && aiSubscription.quizPoint > 0) {
+      aiSubscription.quizPoint -= 1; // Уменьшаем quizPoint на 1
+      await user.save(); // Сохраняем изменения в базе данных
+    } else {
+      return res.status(400).json({ message: "Недостаточно quizPoint" });
+    }
+    const UserData = new UserDto(user);
+
+    res.json(UserData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Ошибка сервера" });
+  }
+};
+
 // export const generatePdf = async (req, res) => {
 //   try {
 //     const doc = new pdfkit();

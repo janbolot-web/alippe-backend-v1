@@ -4,7 +4,6 @@ import axios from "axios";
 import crypto from "crypto";
 import xml2js from "xml2js";
 import purchaseHistoryModel from "../models/purchaseHistory-model.js";
-import e from "express";
 
 var signatureCode;
 
@@ -14,19 +13,21 @@ export const createPayment = async (req, res) => {
   try {
     const API_URL = "https://api.freedompay.kg/init_payment.php";
     getSignature(orderId, amount, description, successUrl, paymentMethod);
+    // const id =
+
     // Исходные данные
     const requestData = {
-      pg_order_id: "23",
+      pg_order_id: orderId,
       pg_merchant_id: process.env.PAYBOX_MERCHANT_ID, // Замените на свой merchant ID
       pg_amount: amount,
       pg_description: description,
       pg_salt: "random string",
       pg_sig: signatureCode, // Замените на свой pg_sig
       pg_currency: "KGS",
-      pg_testing_mode: "1",
       pg_success_url: successUrl, // Ваш URL для успешного ответа
       pg_payment_method: paymentMethod,
       pg_timeout_after_payment: "10",
+      // pg_testing_mode: "1",
     };
     const headers = {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -53,7 +54,7 @@ export const createPayment = async (req, res) => {
           // applyDiscount(userId);
         }
       });
-
+      console.log(jsonResponse);
       res
         .status(200)
         .json({ message: "Ссылка на оплату создано!", data: jsonResponse });
@@ -103,6 +104,7 @@ async function purchaseService(data, userId, product, planPoint, quizPoint) {
           quizPoint: quizPoint,
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 дней
         });
+        console.log("ai", updatedUser);
       } else {
         updatedUser.subscription.push({
           title: product,
@@ -112,28 +114,28 @@ async function purchaseService(data, userId, product, planPoint, quizPoint) {
       }
     }
 
-    // Создаем запись о покупке
-    const purchase = new purchaseHistoryModel({
-      paymentId: data.pg_payment_id[0],
-      amount: data.pg_amount[0],
-      date: data.pg_create_date[0],
-      pointsEarned,
-      currency: data.pg_currency[0],
-      paymentMethod: data.pg_payment_method[0],
-      cardPan: data.pg_card_pan[0],
-      authCode: data.pg_auth_code[0],
-      pgSalt: data.pg_salt[0],
-      pgSig: data.pg_sig[0],
-      cardName: data.pg_card_name[0],
-      userPhone: data.pg_user_phone[0],
-      userEmail: data.pg_user_email[0],
-    });
+    // // Создаем запись о покупке
+    // const purchase = new purchaseHistoryModel({
+    //   paymentId: data.pg_payment_id[0],
+    //   amount: data.pg_amount[0],
+    //   date: data.pg_create_date[0],
+    //   pointsEarned,
+    //   currency: data.pg_currency[0],
+    //   paymentMethod: data.pg_payment_method[0],
+    //   // cardPan: data.pg_card_pan[0],
+    //   authCode: data.pg_auth_code[0],
+    //   pgSalt: data.pg_salt[0],
+    //   pgSig: data.pg_sig[0],
+    //   cardName: data.pg_card_name[0],
+    //   userPhone: data.pg_user_phone[0],
+    //   userEmail: data.pg_user_email[0],
+    // });
 
-    // Добавляем покупку в историю пользователя
-    updatedUser.purchaseHistory.push(purchase._id);
+    // // Добавляем покупку в историю пользователя
+    // updatedUser.purchaseHistory.push(purchase._id);
 
-    // Сохраняем изменения
-    await purchase.save();
+    // // Сохраняем изменения
+    // await purchase.save();
     await updatedUser.save();
     console.log("Покупка успешно сохранена");
 
@@ -181,6 +183,11 @@ export const getStatusPayment = async (req, res) => {
           planPoint,
           quizPoint
         );
+        console.log("purchaseService",  jsonResponse,
+        userId,
+        product,
+        planPoint,
+        quizPoint);
 
         // Обновляем данные пользователя перед отправкой
         const refreshedUser = await userModel
@@ -278,7 +285,7 @@ async function getSignatureStatus(paymentId) {
   const signatureArray = [
     "get_status3.php", // Имя скрипта
     ...Object.values(sortedParams),
-    "XUaqxmm6oJKZDI32", // Секретный ключ
+    process.env.SECRET_KEY, // Секретный ключ
   ];
 
   const signature = crypto
@@ -300,7 +307,7 @@ async function getSignature(
 
   //  Исходные данные
   const request = {
-    pg_order_id: "23",
+    pg_order_id: orderId,
     pg_merchant_id: process.env.PAYBOX_MERCHANT_ID,
     pg_amount: amount,
     pg_description: description,
@@ -308,8 +315,8 @@ async function getSignature(
     pg_currency: "KGS",
     pg_payment_method: paymentMethod,
     pg_timeout_after_payment: "10",
-    pg_testing_mode: "1",
     pg_success_url: successUrl,
+    // pg_testing_mode: "1",
   };
   // console.log(request);
 

@@ -12,7 +12,7 @@ const categorySchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    imageUrl: {
+    image: {
       type: String,
       default: "",
     },

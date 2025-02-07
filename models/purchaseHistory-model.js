@@ -8,7 +8,6 @@ const purchaseHistorySchema = new mongoose.Schema(
     pointsEarned: { type: Number, required: true },
     currency: { type: String, required: true },
     paymentMethod: { type: String, required: true },
-    cardPan: { type: String, required: true },
     authCode: { type: String, required: true },
     pgSalt: { type: String, required: true },
     pgSig: { type: String, required: true },
