@@ -371,7 +371,7 @@ export const deleteUser = async (req, res) => {
 export const fetchChatgpt = async (req, res) => {
   try {
     const { message, userId } = req.body;
-    console.log(message);
+    console.log('message',message);
     const user = await userModel.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "Пользователь не найден" });
