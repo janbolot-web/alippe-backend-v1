@@ -371,7 +371,7 @@ export const deleteUser = async (req, res) => {
 export const fetchChatgpt = async (req, res) => {
   try {
     const { message, userId } = req.body;
-    console.log('message',message);
+    console.log("message", message);
     const user = await userModel.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "Пользователь не найден" });
@@ -437,20 +437,31 @@ const s3 = new AWS.S3({
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
+// Функция для загрузки файла в S3 и последующего удаления
 const uploadToS3 = async (filePath, fileName, type) => {
   const fileContent = fs.readFileSync(filePath);
 
   const params = {
-    Bucket: process.env.AWS_BUCKET_NAME, // Your S3 bucket name
-    Key: `files/${fileName}`, // S3 object key (you can adjust the path in S3 as needed)
+    Bucket: process.env.AWS_BUCKET_NAME,
+    Key: `files/${fileName}`,
     Body: fileContent,
-    ContentType: type == "pdf" ? "application/pdf" : "application/word", // Adjust content type based on file
+    ContentType:
+      type === "pdf"
+        ? "application/pdf"
+        : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   };
 
   try {
     const data = await s3.upload(params).promise();
     console.log("File uploaded successfully:", data.Location);
-    return data.Location; // Return the URL of the uploaded file
+
+    // Удаляем локальный файл после успешной загрузки
+    fs.unlink(filePath, (err) => {
+      if (err) console.error("Error deleting file:", err);
+      else console.log(`Temporary file ${filePath} deleted`);
+    });
+
+    return data.Location;
   } catch (error) {
     console.error("Error uploading file to S3:", error);
     throw error;
@@ -566,7 +577,17 @@ export const downloadPdf = async (req, res) => {
     `;
 
     // Use Puppeteer to convert HTML to PDF
-    const browser = await puppeteer.launch({ headless: true });
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--disable-gpu",
+      ],
+    });
+
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: "networkidle0" });
 
