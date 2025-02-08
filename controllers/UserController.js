@@ -613,9 +613,11 @@ export const downloadPdf = async (req, res) => {
     // Send response
     res.json({ message: "PDF generated and uploaded", fileUrl: s3Url });
   } catch (error) {
-    console.error("Error during PDF generation or upload:", error);
-    res.status(500).json({ error: "Error generating or uploading PDF" });
+    console.error("Ошибка во время генерации PDF:", error.message);
+    console.error(error.stack); // Полный стек ошибки
+    res.status(500).json({ error: "Ошибка генерации или загрузки PDF" });
   }
+  
 };
 
 export const downloadWord = async (req, res) => {
