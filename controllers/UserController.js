@@ -15,6 +15,7 @@ import puppeteer from "puppeteer";
 import { marked } from "marked";
 import htmlToDocx from "html-to-docx";
 import { v4 as uuidv4 } from "uuid";
+import { chromium } from "playwright";
 
 let verificationCodes = {};
 dotenv.config();
@@ -474,6 +475,7 @@ function ensureTempDirectoryExists() {
     fs.mkdirSync(tempPath, { recursive: true });
   }
 }
+
 export const downloadPdf = async (req, res) => {
   try {
     // Ensure temporary directory exists
@@ -576,22 +578,16 @@ export const downloadPdf = async (req, res) => {
     </html>
     `;
 
-    // Use Puppeteer to convert HTML to PDF
-    const browser = await puppeteer.launch({
+    // Launch Playwright browser
+    const browser = await chromium.launch({
       headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
-        "--disable-gpu",
-      ],
     });
-
     const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+    
+    // Set content to the page
+    await page.setContent(htmlContent);
 
-    // Add padding to the top and bottom of each page
+    // Generate PDF
     await page.pdf({
       path: filePath,
       format: "A4",
@@ -617,7 +613,6 @@ export const downloadPdf = async (req, res) => {
     console.error(error.stack); // Полный стек ошибки
     res.status(500).json({ error: "Ошибка генерации или загрузки PDF" });
   }
-  
 };
 
 export const downloadWord = async (req, res) => {
