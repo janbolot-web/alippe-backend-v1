@@ -71,7 +71,8 @@ export const createPayment = async (req, res) => {
 // Покупка услуги
 async function purchaseService(data, userId, product, planPoint, quizPoint) {
   try {
-    const pointsEarned = Math.floor(data.pg_amount[0] / 5); // Например, 1 балл за каждые 5 у.е.
+    // const pointsEarned = Math.floor(data.pg_amount[0] / 5); // Например, 1 балл за каждые 5 у.е.
+    const pointsEarned = 1; // Например, 1 балл за каждые 5 у.е.
 
     // Находим и обновляем пользователя, возвращая актуальные данные
     let updatedUser = await userModel.findOneAndUpdate(
@@ -114,7 +115,7 @@ async function purchaseService(data, userId, product, planPoint, quizPoint) {
       }
     }
 
-    // // Создаем запись о покупке
+    // Создаем запись о покупке
     // const purchase = new purchaseHistoryModel({
     //   paymentId: data.pg_payment_id[0],
     //   amount: data.pg_amount[0],
@@ -123,18 +124,18 @@ async function purchaseService(data, userId, product, planPoint, quizPoint) {
     //   currency: data.pg_currency[0],
     //   paymentMethod: data.pg_payment_method[0],
     //   // cardPan: data.pg_card_pan[0],
-    //   authCode: data.pg_auth_code[0],
-    //   pgSalt: data.pg_salt[0],
-    //   pgSig: data.pg_sig[0],
-    //   cardName: data.pg_card_name[0],
+    //   // authCode: data.pg_auth_code[0],
+    //   // pgSalt: data.pg_salt[0],
+    //   // pgSig: data.pg_sig[0],
+    //   // cardName: data.pg_card_name[0],
     //   userPhone: data.pg_user_phone[0],
-    //   userEmail: data.pg_user_email[0],
+    //   // userEmail: data.pg_user_email[0],
     // });
 
     // // Добавляем покупку в историю пользователя
     // updatedUser.purchaseHistory.push(purchase._id);
 
-    // // Сохраняем изменения
+    // Сохраняем изменения
     // await purchase.save();
     await updatedUser.save();
     console.log("Покупка успешно сохранена");
@@ -183,11 +184,14 @@ export const getStatusPayment = async (req, res) => {
           planPoint,
           quizPoint
         );
-        console.log("purchaseService",  jsonResponse,
-        userId,
-        product,
-        planPoint,
-        quizPoint);
+        console.log(
+          "purchaseService",
+          jsonResponse,
+          userId,
+          product,
+          planPoint,
+          quizPoint
+        );
 
         // Обновляем данные пользователя перед отправкой
         const refreshedUser = await userModel

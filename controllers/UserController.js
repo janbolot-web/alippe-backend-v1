@@ -16,6 +16,7 @@ import { marked } from "marked";
 import htmlToDocx from "html-to-docx";
 import { v4 as uuidv4 } from "uuid";
 import { chromium } from "playwright";
+import aiResponses from "../models/aiResponses.js";
 
 let verificationCodes = {};
 dotenv.config();
@@ -81,7 +82,7 @@ export const verifyCode = async (req, res) => {
     const newUser = new userModel({
       name: "",
       phoneNumber: phoneNumber,
-      isDataUser: false,
+      // isDataUser: false,
       avatarUrl: "",
       email: new Date(),
       roles: [userRole.value],
@@ -302,6 +303,7 @@ export const getMe = async (req, res) => {
 
 export const getMeMobile = async (req, res) => {
   try {
+    console.log("id", req.query.userId);
     const user = await userModel.findById(req.query.userId).populate("courses");
 
     if (!user) {
@@ -368,65 +370,79 @@ export const deleteUser = async (req, res) => {
     res.status(404).json({ message: "Не удалось удалить пользователья" });
   }
 };
-
 export const fetchChatgpt = async (req, res) => {
   try {
     const { message, userId } = req.body;
     console.log("message", message);
+
     const user = await userModel.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "Пользователь не найден" });
     }
 
     const aiSubscription = user.subscription.find((sub) => sub.title === "ai");
-    if (aiSubscription && aiSubscription.planPoint > 0) {
-      // Отправка запроса в GPT-4
-      // console.log("!!!!!!!!!data",data);
-
-      const prompt = {
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "user",
-            content: message,
-          },
-        ],
-      };
-
-      const config = {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.OPEN_AI}`,
-        },
-      };
-      const response = await axios
-        .post(
-          "https://workers-playground-shiny-haze-2f78jjjj.janbolotcode.workers.dev/v1/chat/completions",
-          prompt,
-          config
-        )
-        .then((response) => {
-          return response;
-        })
-        .catch((error) => {
-          console.error("Произошла ошибка:", error); // обработка ошибки
-        });
-
-      aiSubscription.planPoint -= 1;
-      await user.save();
-
-      const UserData = new UserDto(user);
-      console.log(UserData);
-
-      res.json({
-        response: response.data.choices[0].message.content,
-        userData: UserData,
-        statusCode: response.status,
-      });
+    if (!aiSubscription || aiSubscription.planPoint <= 0) {
+      return res.status(403).json({ message: "Недостаточно AI-токенов" });
     }
+
+    const prompt = {
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: message,
+        },
+      ],
+    };
+
+    const config = {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPEN_AI}`,
+      },
+    };
+
+    const response = await axios.post(
+      "https://workers-playground-shiny-haze-2f78jjjj.janbolotcode.workers.dev/v1/chat/completions",
+      prompt,
+      config
+    );
+
+    // Создаем новый документ AiResponses
+    const newAiResponse = new aiResponses({
+      choices: response.data.choices,
+      created: response.data.created,
+      id: response.data.id,
+      model: response.data.model,
+      prompt_filter_results: response.data.prompt_filter_results,
+      system_fingerprint: response.data.system_fingerprint,
+      usage: response.data.usage,
+    });
+
+    // Сохраняем ответ AI
+    const savedResponse = await newAiResponse.save();
+
+    // Уменьшаем количество токенов
+    aiSubscription.planPoint -= 1;
+
+    // Добавляем ID сохраненного ответа в массив пользователя
+    user.aiResponses.push(savedResponse._id);
+
+    await user.save();
+
+    const UserData = new UserDto(user);
+
+    res.json({
+      response: response.data.choices[0].message.content,
+      userData: UserData,
+      statusCode: response.status,
+    });
   } catch (error) {
-    console.log(error);
-    res.status(404).json({ message: "Не удалось удалить пользователья" });
+    console.error("Error in fetchChatgpt:", error);
+    res.status(500).json({
+      message: "Произошла ошибка при обработке запроса",
+      error: error.message,
+    });
   }
 };
 
@@ -583,7 +599,7 @@ export const downloadPdf = async (req, res) => {
       headless: true,
     });
     const page = await browser.newPage();
-    
+
     // Set content to the page
     await page.setContent(htmlContent);
 

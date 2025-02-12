@@ -117,6 +117,7 @@ export const getCourse = async (req, res) => {
       .populate("modules");
     // .populate({ path: "modules.lessons" });
     // const { ...courseData } = course._doc;
+    console.log(course);
     res.json(course);
   } catch (error) {
     console.log(error);

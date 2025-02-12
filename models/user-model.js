@@ -32,6 +32,7 @@ const UserSchema = new mongoose.Schema(
         ref: "Book", // Указываем на модель Book
       },
     ],
+    aiResponses: [{ type: mongoose.Schema.Types.ObjectId, ref: "AiResponses" }],
     roles: [{ type: String, ref: "Role" }],
     avatarUrl: { type: String, required: false },
     subscription: [
