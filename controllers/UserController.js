@@ -17,6 +17,7 @@ import htmlToDocx from "html-to-docx";
 import { v4 as uuidv4 } from "uuid";
 import { chromium } from "playwright";
 import aiResponses from "../models/aiResponses.js";
+import quizResponses from "../models/quizResponses.js";
 
 let verificationCodes = {};
 dotenv.config();
@@ -446,6 +447,122 @@ export const fetchChatgpt = async (req, res) => {
   }
 };
 
+// Check subscription endpoint
+export const checkSubscription = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    const user = await userModel.findById(userId);
+    if (!user) {
+      console.log('Пользователь не найден');
+      return res.status(404).json({ message: "Пользователь не найден" });
+    }
+
+    const aiSubscription = user.subscription.find((sub) => sub.title === "ai");
+    const hasValidSubscription = aiSubscription && aiSubscription.planPoint > 0;
+
+    res.json({ hasValidSubscription });
+  } catch (error) {
+    res.status(500).json({
+      message: "Произошла ошибка при проверке подписки",
+      error: error.message,
+    });
+  }
+};
+
+// Save response endpoint
+export const saveAiResponse = async (req, res) => {
+  try {
+    const { userId, response } = req.body;
+    console.log(response);
+
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
+    }
+
+    const aiSubscription = user.subscription.find((sub) => sub.title === "ai");
+
+    // Create new AI response document
+    const newAiResponse = new aiResponses({
+      choices: response.choices,
+      created: response.created,
+      id: response.id,
+      model: response.model,
+      prompt_filter_results: response.prompt_filter_results,
+      system_fingerprint: response.system_fingerprint,
+      usage: response.usage,
+    });
+
+    // Save response and update user
+    const savedResponse = await newAiResponse.save();
+
+    // Decrease token count
+    aiSubscription.planPoint -= 1;
+
+    // Add response ID to user's responses
+    user.aiResponses.push(savedResponse._id);
+
+    await user.save();
+
+    const UserData = new UserDto(user);
+
+    res.json({ userData: UserData });
+  } catch (error) {
+    res.status(500).json({
+      message: "Произошла ошибка при сохранении ответа",
+      error: error.message,
+    });
+  }
+};
+
+
+// Save response endpoint
+export const saveAiQuiz = async (req, res) => {
+  try {
+    const { userId, response } = req.body;
+    console.log(response);
+
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
+    }
+
+    const aiSubscription = user.subscription.find((sub) => sub.title === "ai");
+
+    // Create new AI response document
+    const newQuizResponse = new quizResponses({
+      choices: response.choices,
+      created: response.created,
+      id: response.id,
+      model: response.model,
+      prompt_filter_results: response.prompt_filter_results,
+      system_fingerprint: response.system_fingerprint,
+      usage: response.usage,
+    });
+
+    // Save response and update user
+    const savedResponse = await newQuizResponse.save();
+
+    // Decrease token count
+    aiSubscription.quizPoint -= 1;
+
+    // Add response ID to user's responses
+    user.quizResponses.push(savedResponse._id);
+
+    await user.save();
+
+    const UserData = new UserDto(user);
+
+    res.json({ userData: UserData });
+  } catch (error) {
+    res.status(500).json({
+      message: "Произошла ошибка при сохранении ответа",
+      error: error.message,
+    });
+  }
+};
+
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID, // Ensure these are set in your environment
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -689,7 +806,7 @@ export const sendMessageToChatGPT = async (req, res) => {
       );
 
       if (response.status === 200) {
-        console.log('ready ',response);
+        console.log("ready ", response);
         aiSubscription.quizPoint -= 1;
         await user.save();
 

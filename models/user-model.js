@@ -33,6 +33,7 @@ const UserSchema = new mongoose.Schema(
       },
     ],
     aiResponses: [{ type: mongoose.Schema.Types.ObjectId, ref: "AiResponses" }],
+    quizResponses: [{ type: mongoose.Schema.Types.ObjectId, ref: "QuizResponses" }],
     roles: [{ type: String, ref: "Role" }],
     avatarUrl: { type: String, required: false },
     subscription: [

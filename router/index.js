@@ -65,6 +65,9 @@ router.post("/pdf", UserController.downloadPdf);
 router.post("/word", UserController.downloadWord);
 router.post("/gptRequest", UserController.addGptRequestToUser);
 router.post("/sendMessageToChatGPT", UserController.sendMessageToChatGPT);
+router.post("/saveAiResponse", UserController.saveAiResponse);
+router.post("/saveAiQuiz", UserController.saveAiQuiz);
+router.post("/checkSubscription", UserController.checkSubscription);
 // router.post("/generatePdf", UserController.generatePdf);
 
 router.get("/getAllBooks", BookController.getAllBooks);
@@ -90,7 +93,10 @@ router.get("/getStoreById/:id", ProductController.getStoreById);
 router.post("/createCategory", CategoryController.createCategory);
 router.get("/getAllCategories", CategoryController.getAllCategories);
 router.get("/getCategoryById/:id", CategoryController.getCategoryById);
-router.get("/getProductsByCategory/:id", CategoryController.getProductsByCategory);
+router.get(
+  "/getProductsByCategory/:id",
+  CategoryController.getProductsByCategory
+);
 // router.put('/:id', CategoryController.updateCategory);
 router.delete("/:id", CategoryController.deleteCategory);
 

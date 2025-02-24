@@ -10,6 +10,8 @@ export default class UserDto {
   avatarUrl;
   phoneNumber;
   subscription;
+  aiResponses;
+  quizResponses;
   constructor(model) {
     this.phone = model.phone;
     this.email = model.email;
@@ -22,5 +24,7 @@ export default class UserDto {
     this.updatedAt = model.updatedAt;
     this.avatarUrl = model.avatarUrl;
     this.subscription = model.subscription;
+    this.aiResponses = model.aiResponses;
+    this.quizResponses = model.quizResponses;
   }
 }
