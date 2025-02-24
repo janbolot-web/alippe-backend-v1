@@ -165,8 +165,14 @@ export const deleteStore = async (req, res) => {
 };
 
 export const uploadFile = async (req, res) => {
+  // if (!req.files) {
+  //   return res.status(400).send("No files were uploaded.");
+  // }
+
+  console.log(req.files);
   upload(req, res, async function (err) {
     if (err) {
+      console.log(err);
       return res.status(400).send({
         result: 0,
         message: err,

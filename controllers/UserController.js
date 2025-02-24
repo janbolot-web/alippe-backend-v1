@@ -689,6 +689,7 @@ export const sendMessageToChatGPT = async (req, res) => {
       );
 
       if (response.status === 200) {
+        console.log('ready ',response);
         aiSubscription.quizPoint -= 1;
         await user.save();
 
