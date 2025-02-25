@@ -27,7 +27,7 @@ export const createPayment = async (req, res) => {
       pg_success_url: successUrl, // Ваш URL для успешного ответа
       pg_payment_method: paymentMethod,
       pg_timeout_after_payment: "10",
-      pg_testing_mode: "1",
+      // pg_testing_mode: "1",
     };
     const headers = {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -320,7 +320,7 @@ async function getSignature(
     pg_payment_method: paymentMethod,
     pg_timeout_after_payment: "10",
     pg_success_url: successUrl,
-    pg_testing_mode: "1",
+    // pg_testing_mode: "1",
   };
   // console.log(request);
 
