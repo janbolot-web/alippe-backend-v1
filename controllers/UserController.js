@@ -279,6 +279,8 @@ export const login = async (req, res) => {
 export const getMe = async (req, res) => {
   try {
     const token = req.query.token;
+    console.log("token", req.query.token);
+
     if (!token) {
       return res.status(400).json({ error: "Token is required" });
     }
