@@ -570,75 +570,10 @@ export const setupSocket = (server) => {
             }
 
             let room = await Room.findById(roomId);
-            if (!room) {
-              socket.emit("error_occurred", {
-                actionType: "tap",
-                errorMessage: "Room not found",
-                errorCode: "ROOM_NOT_FOUND",
-              });
-              return;
-            }
 
             let player = room.players.find(
               (player) => player.socketID === playerId
             );
-
-            if (!player) {
-              socket.emit("error_occurred", {
-                actionType: "tap",
-                errorMessage: "Player not found in this room",
-                errorCode: "PLAYER_NOT_FOUND",
-              });
-              return;
-            }
-
-            // Проверка на повторную обработку того же запроса
-            if (
-              player.processedRequests &&
-              player.processedRequests.includes(requestId)
-            ) {
-              socket.emit("request_already_processed", { requestId });
-              return;
-            }
-
-            // Проверка, не устарел ли вопрос
-            const currentQuestion = room.currentQuestion;
-            if (currentQuestion !== questionIndex) {
-              socket.emit("answer_rejected", {
-                reason: "question_expired",
-                currentQuestion: currentQuestion,
-              });
-              return;
-            }
-
-            // Проверка, не закончилось ли время
-            if (Date.now() > room.questionEndTime) {
-              socket.emit("answer_rejected", {
-                reason: "time_expired",
-                question: currentQuestion,
-              });
-              return;
-            }
-
-            // Проверка, не ответил ли игрок уже на этот вопрос
-            if (
-              player.answeredQuestions &&
-              player.answeredQuestions.includes(currentQuestion)
-            ) {
-              socket.emit("answer_rejected", {
-                reason: "already_answered",
-                question: currentQuestion,
-              });
-              return;
-            }
-
-            // Сохраняем ID запроса для предотвращения дублирования
-            if (!player.processedRequests) player.processedRequests = [];
-            player.processedRequests.push(requestId);
-
-            // Отмечаем этот вопрос как отвеченный
-            if (!player.answeredQuestions) player.answeredQuestions = [];
-            player.answeredQuestions.push(currentQuestion);
 
             // Обозначаем, что игрок ответил
             player.hasAnswered = true;
@@ -654,6 +589,7 @@ export const setupSocket = (server) => {
             // Обновляем очки, если ответ правильный
             if (correct) {
               player.points = Math.round(player.points + points);
+              console.log(player.points);
               player.correctAnswer += 1;
             }
 
@@ -663,13 +599,6 @@ export const setupSocket = (server) => {
 
             // Сохраняем изменения
             await room.save();
-
-            // Отправляем подтверждение игроку
-            socket.emit("answer_processed", {
-              correct,
-              points,
-              requestId,
-            });
 
             // Обновляем всех участников
             await updateRoomState(roomId);

@@ -18,7 +18,7 @@ export const createPayment = async (req, res) => {
     // Исходные данные
     const requestData = {
       pg_order_id: orderId,
-      pg_merchant_id: process.env.PAYBOX_MERCHANT_ID, // Замените на свой merchant ID
+      pg_merchant_id: process.env.PAYBOX_MERCHANT_ID_TEST, // Замените на свой merchant ID
       pg_amount: amount,
       pg_description: description,
       pg_salt: "random string",
@@ -27,7 +27,7 @@ export const createPayment = async (req, res) => {
       pg_success_url: successUrl, // Ваш URL для успешного ответа
       pg_payment_method: paymentMethod,
       pg_timeout_after_payment: "10",
-      // pg_testing_mode: "1",
+      pg_testing_mode: "1",
     };
     const headers = {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -155,7 +155,7 @@ export const getStatusPayment = async (req, res) => {
     const signature = await getSignatureStatus(paymentId);
 
     const requestData = {
-      pg_merchant_id: process.env.PAYBOX_MERCHANT_ID,
+      pg_merchant_id: process.env.PAYBOX_MERCHANT_ID_TEST,
       pg_salt: "random string",
       pg_payment_id: paymentId,
       pg_sig: signature,
@@ -242,7 +242,7 @@ async function getSignatureStatus(paymentId) {
 
   //  Исходные данные
   const request = {
-    pg_merchant_id: process.env.PAYBOX_MERCHANT_ID.toString(),
+    pg_merchant_id: process.env.PAYBOX_MERCHANT_ID_TEST.toString(),
     pg_payment_id: paymentId,
     pg_salt: "random string",
   };
@@ -289,7 +289,7 @@ async function getSignatureStatus(paymentId) {
   const signatureArray = [
     "get_status3.php", // Имя скрипта
     ...Object.values(sortedParams),
-    process.env.SECRET_KEY, // Секретный ключ
+    process.env.SECRET_KEY_TEST, // Секретный ключ
   ];
 
   const signature = crypto
@@ -312,7 +312,7 @@ async function getSignature(
   //  Исходные данные
   const request = {
     pg_order_id: orderId,
-    pg_merchant_id: process.env.PAYBOX_MERCHANT_ID,
+    pg_merchant_id: process.env.PAYBOX_MERCHANT_ID_TEST,
     pg_amount: amount,
     pg_description: description,
     pg_salt: "random string",
@@ -320,7 +320,7 @@ async function getSignature(
     pg_payment_method: paymentMethod,
     pg_timeout_after_payment: "10",
     pg_success_url: successUrl,
-    // pg_testing_mode: "1",
+    pg_testing_mode: "1",
   };
   // console.log(request);
 
@@ -365,7 +365,7 @@ async function getSignature(
   const signatureArray = [
     "init_payment.php", // Имя скрипта
     ...Object.values(sortedParams),
-    process.env.SECRET_KEY, // Секретный ключ
+    process.env.SECRET_KEY_TEST, // Секретный ключ
   ];
 
   const signature = crypto
