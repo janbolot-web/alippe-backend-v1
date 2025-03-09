@@ -103,6 +103,23 @@ router.delete("/:id", CategoryController.deleteCategory);
 router.post("/pay", PaymentController.createPayment);
 router.post("/statusPayment", PaymentController.getStatusPayment);
 
+// Добавьте эти маршруты в раздел роутинга для админа
+router.get("/admin/users", UserController.getAdminUsersList);
+
+router.post("/admin/grant-ai-access", UserController.grantAiAccess);
+// Добавьте этот маршрут к существующим маршрутам администратора
+router.get(
+  "/admin/users-with-subscription",
+  UserController.getUsersWithAiSubscription
+);
+
+// Статистика для админов
+router.get("/admin/ai-statistics", UserController.getAiUsageStatistics);
+
+router.get(
+  "/admin/user-ai-statistics/:userId",
+  UserController.getUserAiStatistics
+);
 // app.get("/.well-known/apple-app-site-association", (req, res) => {
 //   res.setHeader("Content-Type", "application/json");
 //   fs.readFile("path/to/apple-app-site-association", "utf8", (err, data) => {

@@ -18,6 +18,7 @@ import { v4 as uuidv4 } from "uuid";
 import { chromium } from "playwright";
 import aiResponses from "../models/aiResponses.js";
 import quizResponses from "../models/quizResponses.js";
+import mongoose from "mongoose";
 
 let verificationCodes = {};
 dotenv.config();
@@ -456,7 +457,7 @@ export const checkSubscription = async (req, res) => {
 
     const user = await userModel.findById(userId);
     if (!user) {
-      console.log('Пользователь не найден');
+      console.log("Пользователь не найден");
       return res.status(404).json({ message: "Пользователь не найден" });
     }
 
@@ -517,7 +518,6 @@ export const saveAiResponse = async (req, res) => {
     });
   }
 };
-
 
 // Save response endpoint
 export const saveAiQuiz = async (req, res) => {
@@ -895,31 +895,545 @@ export const addGptRequestToUser = async (req, res) => {
   }
 };
 
-// export const generatePdf = async (req, res) => {
-//   try {
-//     const doc = new pdfkit();
+// Получение пользователей с пагинацией, поиском и сортировкой
+export const getAdminUsersList = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      search = "",
+      sortBy = "createdAt",
+      sortOrder = -1,
+    } = req.query;
 
-//     // Устанавливаем заголовок ответа для указания типа содержимого как PDF
-//     res.setHeader("Content-Type", "application/pdf");
-//     // Устанавливаем заголовок ответа для указания имени файла
-//     res.setHeader(
-//       "Content-Disposition",
-//       'attachment; filename="user_data.pdf"'
-//     );
+    // Построение условия поиска
+    const searchCondition = search
+      ? {
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { phoneNumber: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+          ],
+        }
+      : {};
 
-//     // Перенаправляем вывод PDF в ответ HTTP
-//     doc.pipe(res);
-//     doc.font("fonts/RobotoFlex-Regular.ttf");
+    // Опции сортировки
+    const sortOptions = {};
+    sortOptions[sortBy] = parseInt(sortOrder);
 
-//     // Добавляем информацию о пользователе в PDF
-//     doc.text(`Жанюолот`);
+    // Получение данных с пагинацией
+    const users = await userModel
+      .find(searchCondition)
+      .sort(sortOptions)
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
 
-//     // Добавляем информацию о курсах пользователя в PDF
+    // Получаем общее количество пользователей по запросу
+    const totalUsers = await userModel.countDocuments(searchCondition);
 
-//     // Завершаем документ и ответ
-//     doc.end();
-//   } catch (error) {
-//     console.error("Error generating PDF:", error);
-//     res.status(500).json({ success: false, message: "Error generating PDF" });
-//   }
-// };
+    res.json({
+      users,
+      totalPages: Math.ceil(totalUsers / limit),
+      currentPage: parseInt(page),
+      totalUsers,
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res
+      .status(500)
+      .json({ message: "Ошибка при получении списка пользователей" });
+  }
+};
+
+export const grantAiAccess = async (req, res) => {
+  try {
+    const {
+      userId,
+      planPoint = 50,
+      quizPoint = 20,
+      expiresInDays = 30,
+    } = req.body;
+
+    // Проверка наличия userId
+    if (!userId || userId === "") {
+      return res
+        .status(400)
+        .json({ message: "ID пользователя не указан или пустой" });
+    }
+
+    // Проверка валидности ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res
+        .status(400)
+        .json({ message: "Недопустимый формат ID пользователя" });
+    }
+
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
+    }
+
+    // Ищем подписку с title "ai" или создаем новую
+    const aiSubscriptionIndex = user.subscription.findIndex(
+      (sub) => sub.title === "ai"
+    );
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+
+    if (aiSubscriptionIndex !== -1) {
+      // Обновляем существующую подписку
+      // Получаем текущие значения planPoint и quizPoint или используем 0, если они не существуют
+      const currentPlanPoint =
+        user.subscription[aiSubscriptionIndex].planPoint || 0;
+      const currentQuizPoint =
+        user.subscription[aiSubscriptionIndex].quizPoint || 0;
+
+      user.subscription[aiSubscriptionIndex] = {
+        ...user.subscription[aiSubscriptionIndex],
+        title: "ai",
+        isActive: true,
+        planPoint: currentPlanPoint + parseInt(planPoint), // Добавляем к существующему значению
+        quizPoint: currentQuizPoint + parseInt(quizPoint), // Добавляем к существующему значению
+        expiresAt,
+      };
+    } else {
+      // Создаем новую подписку
+      user.subscription.push({
+        title: "ai",
+        isActive: true,
+        planPoint: parseInt(planPoint),
+        quizPoint: parseInt(quizPoint),
+        expiresAt,
+      });
+    }
+
+    await user.save();
+
+    const UserData = new UserDto(user);
+
+    res.json({
+      success: true,
+      message: "Доступ к ИИ успешно предоставлен",
+      user: UserData,
+    });
+  } catch (error) {
+    console.error("Error granting AI access:", error);
+    res.status(500).json({
+      message: "Ошибка при предоставлении доступа к ИИ",
+      error: error.message,
+    });
+  }
+};
+
+// Получение пользователей с AI-подписками
+// Получение пользователей с AI-подписками
+export const getUsersWithAiSubscription = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = "createdAt",
+      sortOrder = -1,
+      search = "",
+    } = req.query;
+
+    // Условие для поиска пользователей с активной AI-подпиской
+    const subscriptionFilter = {
+      subscription: {
+        $elemMatch: {
+          title: "ai",
+          isActive: true,
+        },
+      },
+    };
+
+    // Условие для поиска по имени, email или телефону
+    const searchCondition = search
+      ? {
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { phoneNumber: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+          ],
+        }
+      : {};
+
+    // Объединение условий с помощью $and
+    const query = search
+      ? { $and: [subscriptionFilter, searchCondition] }
+      : subscriptionFilter;
+
+    // Опции сортировки
+    const sortOptions = {};
+
+    // Обработка специальных случаев сортировки
+    if (sortBy.startsWith("subscription.")) {
+      // Для сортировки по полям подписки используем агрегацию
+      const field = sortBy.split(".")[1]; // получаем имя поля после точки
+
+      // Создаем конвейер агрегации
+      const pipeline = [
+        { $match: query },
+        {
+          $addFields: {
+            aiSubscription: {
+              $arrayElemAt: [
+                {
+                  $filter: {
+                    input: "$subscription",
+                    as: "sub",
+                    cond: { $eq: ["$$sub.title", "ai"] },
+                  },
+                },
+                0,
+              ],
+            },
+          },
+        },
+        { $sort: { [`aiSubscription.${field}`]: parseInt(sortOrder) } },
+        { $skip: (parseInt(page) - 1) * parseInt(limit) },
+        { $limit: parseInt(limit) },
+      ];
+
+      // Выполняем агрегацию
+      const users = await userModel.aggregate(pipeline);
+
+      // Получаем общее количество пользователей
+      const totalUsers = await userModel.countDocuments(query);
+
+      res.json({
+        users,
+        totalPages: Math.ceil(totalUsers / limit),
+        currentPage: parseInt(page),
+        totalUsers,
+      });
+      return;
+    } else {
+      // Обычная сортировка
+      sortOptions[sortBy] = parseInt(sortOrder);
+
+      // Получение данных с пагинацией
+      const users = await userModel
+        .find(query)
+        .sort(sortOptions)
+        .limit(parseInt(limit))
+        .skip((parseInt(page) - 1) * parseInt(limit));
+
+      // Получаем общее количество пользователей по запросу
+      const totalUsers = await userModel.countDocuments(query);
+
+      // Создаем массив DTO для ответа
+      const userDtos = users.map((user) => new UserDto(user));
+
+      res.json({
+        users: userDtos,
+        totalPages: Math.ceil(totalUsers / limit),
+        currentPage: parseInt(page),
+        totalUsers,
+      });
+    }
+  } catch (error) {
+    console.error("Error fetching users with AI subscription:", error);
+    res.status(500).json({
+      message: "Ошибка при получении пользователей с подписками AI",
+      error: error.message,
+    });
+  }
+};
+
+// Получение общей статистики использования AI
+export const getAiUsageStatistics = async (req, res) => {
+  try {
+    // Статистика по времени (по часам)
+    const hourlyStats = await aiResponses.aggregate([
+      {
+        $addFields: {
+          createdDate: {
+            $cond: {
+              if: { $isNumber: "$created" },
+              then: { $toDate: { $multiply: ["$created", 1000] } }, // Умножаем на 1000, если это Unix timestamp в секундах
+              else: "$created", // Если поле уже дата, оставляем как есть
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          hour: { $hour: "$createdDate" },
+          day: { $dayOfMonth: "$createdDate" },
+          month: { $month: "$createdDate" },
+          year: { $year: "$createdDate" },
+        },
+      },
+      {
+        $group: {
+          _id: { hour: "$hour", day: "$day", month: "$month", year: "$year" },
+          count: { $sum: 1 },
+          totalTokens: { $sum: "$usage.total_tokens" },
+        },
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1, "_id.hour": 1 } },
+    ]);
+
+    // Статистика по дням
+    const dailyStats = await aiResponses.aggregate([
+      {
+        $addFields: {
+          createdDate: {
+            $cond: {
+              if: { $isNumber: "$created" },
+              then: { $toDate: { $multiply: ["$created", 1000] } },
+              else: "$created",
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          day: { $dayOfMonth: "$createdDate" },
+          month: { $month: "$createdDate" },
+          year: { $year: "$createdDate" },
+        },
+      },
+      {
+        $group: {
+          _id: { day: "$day", month: "$month", year: "$year" },
+          count: { $sum: 1 },
+          totalTokens: { $sum: "$usage.total_tokens" },
+          promptTokens: { $sum: "$usage.prompt_tokens" },
+          completionTokens: { $sum: "$usage.completion_tokens" },
+        },
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
+    ]);
+
+    // Общая статистика по пользователям
+    const userStats = await userModel.aggregate([
+      { $unwind: "$aiResponses" },
+      {
+        $lookup: {
+          from: "airesponses",
+          localField: "aiResponses",
+          foreignField: "_id",
+          as: "responseData",
+        },
+      },
+      { $unwind: "$responseData" },
+      {
+        $group: {
+          _id: "$_id",
+          name: { $first: "$name" },
+          email: { $first: "$email" },
+          phoneNumber: { $first: "$phoneNumber" },
+          totalRequests: { $sum: 1 },
+          totalTokens: { $sum: "$responseData.usage.total_tokens" },
+          promptTokens: { $sum: "$responseData.usage.prompt_tokens" },
+          completionTokens: { $sum: "$responseData.usage.completion_tokens" },
+        },
+      },
+      { $sort: { totalRequests: -1 } },
+    ]);
+
+    // Статистика по типам (Plan/Quiz)
+    const typeStats = await Promise.all([
+      // Plan stats
+      aiResponses.countDocuments(),
+      aiResponses.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalTokens: { $sum: "$usage.total_tokens" },
+            promptTokens: { $sum: "$usage.prompt_tokens" },
+            completionTokens: { $sum: "$usage.completion_tokens" },
+          },
+        },
+      ]),
+
+      // Quiz stats
+      quizResponses.countDocuments(),
+      quizResponses.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalTokens: { $sum: "$usage.total_tokens" },
+            promptTokens: { $sum: "$usage.prompt_tokens" },
+            completionTokens: { $sum: "$usage.completion_tokens" },
+          },
+        },
+      ]),
+    ]);
+    // Расчет стоимости (по тарифам OpenAI для GPT-4o)
+
+    // Расчет стоимости (по тарифам OpenAI для GPT-4o)
+    const INPUT_COST_PER_1K = 0.01; // $0.01 за 1K токенов ввода
+    const OUTPUT_COST_PER_1K = 0.03; // $0.03 за 1K токенов вывода
+
+    // Для Plan
+    const planPromptTokens = typeStats[1][0]?.promptTokens || 0;
+    const planCompletionTokens = typeStats[1][0]?.completionTokens || 0;
+    const totalPlanCost = (
+      (planPromptTokens / 1000) * INPUT_COST_PER_1K +
+      (planCompletionTokens / 1000) * OUTPUT_COST_PER_1K
+    ).toFixed(2);
+
+    // Для Quiz
+    const quizPromptTokens = typeStats[3][0]?.promptTokens || 0;
+    const quizCompletionTokens = typeStats[3][0]?.completionTokens || 0;
+    const totalQuizCost = (
+      (quizPromptTokens / 1000) * INPUT_COST_PER_1K +
+      (quizCompletionTokens / 1000) * OUTPUT_COST_PER_1K
+    ).toFixed(2);
+
+    const responseData = {
+      hourlyStats,
+      dailyStats,
+      userStats,
+      planStats: {
+        totalRequests: typeStats[0],
+        totalTokens: typeStats[1][0]?.totalTokens || 0,
+        estimatedCost: totalPlanCost,
+      },
+      quizStats: {
+        totalRequests: typeStats[2],
+        totalTokens: typeStats[3][0]?.totalTokens || 0,
+        estimatedCost: totalQuizCost,
+      },
+    };
+
+    res.json(responseData);
+  } catch (error) {
+    console.error("Error getting AI usage statistics:", error);
+    res.status(500).json({
+      message: "Ошибка при получении статистики использования AI",
+      error: error.message,
+    });
+  }
+};
+
+// Получение детальной статистики по конкретному пользователю
+export const getUserAiStatistics = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res
+        .status(400)
+        .json({ message: "Недопустимый формат ID пользователя" });
+    }
+
+    const user = await userModel
+      .findById(userId)
+      .populate("aiResponses")
+      .populate("quizResponses");
+
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
+    }
+
+    // Статистика по времени для этого пользователя
+    const hourlyStats = await aiResponses.aggregate([
+      { $match: { _id: { $in: user.aiResponses } } },
+      {
+        $addFields: {
+          createdDate: {
+            $cond: {
+              if: { $isNumber: "$created" },
+              then: { $toDate: { $multiply: ["$created", 1000] } },
+              else: "$created",
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          hour: { $hour: "$createdDate" },
+          day: { $dayOfMonth: "$createdDate" },
+          month: { $month: "$createdDate" },
+          year: { $year: "$createdDate" },
+        },
+      },
+      {
+        $group: {
+          _id: { hour: "$hour", day: "$day", month: "$month", year: "$year" },
+          count: { $sum: 1 },
+          totalTokens: { $sum: "$usage.total_tokens" },
+        },
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1, "_id.hour": 1 } },
+    ]);
+
+    // Подробная информация о запросах
+    const planRequests = user.aiResponses.map((resp) => ({
+      id: resp._id,
+      timestamp: resp.created,
+      promptTokens: resp.usage?.prompt_tokens || 0,
+      completionTokens: resp.usage?.completion_tokens || 0,
+      totalTokens: resp.usage?.total_tokens || 0,
+      model: resp.model,
+      estimatedCost: (
+        ((resp.usage?.prompt_tokens || 0) / 1000) * 0.01 +
+        ((resp.usage?.completion_tokens || 0) / 1000) * 0.03
+      ).toFixed(4),
+    }));
+
+    const quizRequests = user.quizResponses.map((resp) => ({
+      id: resp._id,
+      timestamp: resp.created,
+      promptTokens: resp.usage?.prompt_tokens || 0,
+      completionTokens: resp.usage?.completion_tokens || 0,
+      totalTokens: resp.usage?.total_tokens || 0,
+      model: resp.model,
+      estimatedCost: (
+        ((resp.usage?.prompt_tokens || 0) / 1000) * 0.01 +
+        ((resp.usage?.completion_tokens || 0) / 1000) * 0.03
+      ).toFixed(4),
+    }));
+
+    // Общая статистика
+    const planTotalTokens = planRequests.reduce(
+      (sum, req) => sum + req.totalTokens,
+      0
+    );
+    const quizTotalTokens = quizRequests.reduce(
+      (sum, req) => sum + req.totalTokens,
+      0
+    );
+
+    const planTotalCost = planRequests
+      .reduce((sum, req) => sum + parseFloat(req.estimatedCost), 0)
+      .toFixed(2);
+    const quizTotalCost = quizRequests
+      .reduce((sum, req) => sum + parseFloat(req.estimatedCost), 0)
+      .toFixed(2);
+
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+      },
+      hourlyStats,
+      planStats: {
+        totalRequests: planRequests.length,
+        totalTokens: planTotalTokens,
+        estimatedCost: planTotalCost,
+        requests: planRequests,
+      },
+      quizStats: {
+        totalRequests: quizRequests.length,
+        totalTokens: quizTotalTokens,
+        estimatedCost: quizTotalCost,
+        requests: quizRequests,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting user AI statistics:", error);
+    res.status(500).json({
+      message:
+        "Ошибка при получении статистики использования AI для пользователя",
+      error: error.message,
+    });
+  }
+};

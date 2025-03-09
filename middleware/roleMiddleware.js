@@ -6,9 +6,8 @@ export default function (roles) {
       next();
     }
     try {
-      const token =
-        req.headers.authorization && req.headers.authorization;
-      console.log('token '+token);
+      const token = req.headers.authorization && req.headers.authorization;
+      console.log("token " + token);
       if (!token) {
         return res.status(403).json({ message: "Пользователь не авторизован" });
       }
