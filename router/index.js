@@ -5,6 +5,8 @@ import * as BookController from "../controllers/BookController.js";
 import * as ProductController from "../controllers/ProductController.js";
 import * as CategoryController from "../controllers/CategoryController.js";
 import * as PaymentController from "../controllers/PaymentController.js";
+import * as DiaryController from "../controllers/DiaryController.js";
+import * as ScheduleController from "../controllers/scheduleController.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
 import checkAuth from "../middleware/authMiddleware.js";
 
@@ -120,6 +122,27 @@ router.get(
   "/admin/user-ai-statistics/:userId",
   UserController.getUserAiStatistics
 );
+
+// Дневник
+router.get("/diary", DiaryController.getAllSections);
+
+router.get("/diary/:id", DiaryController.getSectionById);
+
+router.post("/diary/createSection", DiaryController.createSection);
+
+// Маршрут для добавления задачи в раздел
+router.post("/diary/:id/tasks", DiaryController.addTaskToSection);
+router.post("/sections/:id", DiaryController.deleteSection);
+
+//Sheculde
+router.get("/schedules", ScheduleController.getSchedules);
+router.get("/schedules/date/:date", ScheduleController.getSchedulesByDate);
+router.get("/schedules/:id", ScheduleController.getScheduleById);
+router.post("/schedules", ScheduleController.createSchedule);
+router.put("/schedules/:id", ScheduleController.updateSchedule);
+router.delete("/schedules/:id", ScheduleController.deleteSchedule);
+router.get("/schedules/stats", ScheduleController.getScheduleStats);
+
 // app.get("/.well-known/apple-app-site-association", (req, res) => {
 //   res.setHeader("Content-Type", "application/json");
 //   fs.readFile("path/to/apple-app-site-association", "utf8", (err, data) => {
