@@ -129,11 +129,21 @@ router.get("/diary", DiaryController.getAllSections);
 router.get("/diary/:id", DiaryController.getSectionById);
 
 router.post("/diary/createSection", DiaryController.createSection);
-
+router.patch(
+  "/diary/:sectionId/tasks/:taskId/complete",
+  DiaryController.updateTaskCompletionStatus
+);
 // Маршрут для добавления задачи в раздел
 router.post("/diary/:id/tasks", DiaryController.addTaskToSection);
-router.post("/sections/:id", DiaryController.deleteSection);
-
+router.delete("/diary/:id", DiaryController.deleteSection);
+router.delete(
+  "/diary/:sectionId/tasks/:taskId",
+  DiaryController.deleteTaskFromSection
+);
+router.put(
+  "/sections/:sectionId/tasks/:taskId",
+  DiaryController.updateTaskInSection
+);
 //Sheculde
 router.get("/schedules", ScheduleController.getSchedules);
 router.get("/schedules/date/:date", ScheduleController.getSchedulesByDate);

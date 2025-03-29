@@ -1,30 +1,37 @@
-// models/section.js
+// models/section-model.js
 import mongoose from "mongoose";
 
-// Схема для задачи
-const TaskSchema = new mongoose.Schema(
+const taskSchema = new mongoose.Schema(
   {
     id: {
       type: String,
       required: true,
+      unique: true,
     },
-    type: { type: String, default: "task" },
-    class: { type: String, default: "" },
     title: {
       type: String,
-      required: [true, "Укажите название задачи"],
+      required: [true, "Название задачи обязательно"],
+      trim: true,
     },
     date: {
       type: Date,
-      required: [true, "Укажите дату задачи"],
+      required: [true, "Дата задачи обязательна"],
     },
     time: {
       type: String,
-      required: [true, "Укажите время задачи"],
+      default: "00:00",
     },
     isUrgent: {
       type: Boolean,
       default: false,
+    },
+    completed: {
+      type: Boolean,
+      default: false,
+    },
+    completedAt: {
+      type: Date,
+      default: null,
     },
     sectionId: {
       type: String,
@@ -39,37 +46,46 @@ const TaskSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { _id: false }
+  {
+    timestamps: true,
+  }
 );
 
-// Схема для раздела
-const SectionSchema = new mongoose.Schema(
+const sectionSchema = new mongoose.Schema(
   {
     id: {
       type: String,
       required: true,
       unique: true,
     },
+    userId: {
+      type: String,
+      required: [true, "ID пользователя обязателен"],
+    },
     title: {
       type: String,
-      required: [true, "Укажите название раздела"],
+      required: [true, "Название раздела обязательно"],
       trim: true,
     },
     letter: {
       type: String,
-      required: [true, "Укажите букву для иконки раздела"],
+      required: [true, "Буква раздела обязательна"],
       trim: true,
-      maxlength: [1, "Буква должна быть одним символом"],
+      maxlength: 1,
     },
     color: {
       type: String,
-      required: [true, "Укажите цвет раздела"],
+      required: [true, "Цвет раздела обязателен"],
+      trim: true,
     },
-    tasks: [TaskSchema],
+    tasks: [taskSchema],
   },
   {
     timestamps: true,
   }
 );
 
-export default mongoose.model("Section", SectionSchema);
+// Создание индекса для эффективного поиска по userId
+sectionSchema.index({ userId: 1 });
+
+export default mongoose.model("Section", sectionSchema);

@@ -7,18 +7,27 @@ import mongoose from "mongoose";
 // @access  Public
 export const getSchedules = async (req, res) => {
   try {
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "ID пользователя обязателен",
+      });
+    }
+    
     // Поддержка пагинации
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 50;
     const skip = (page - 1) * limit;
 
-    // Поиск всех элементов расписания с сортировкой по дате и времени
-    const schedules = await Schedule.find()
+    // Поиск всех элементов расписания с фильтрацией по userId и сортировкой по дате и времени
+    const schedules = await Schedule.find({ userId })
       .sort({ date: 1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await Schedule.countDocuments();
+    const total = await Schedule.countDocuments({ userId });
 
     res.status(200).json({
       success: true,
@@ -44,6 +53,15 @@ export const getSchedules = async (req, res) => {
 // @access  Public
 export const getSchedulesByDate = async (req, res) => {
   try {
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "ID пользователя обязателен",
+      });
+    }
+    
     const dateString = req.params.date; // формат YYYY-MM-DD
 
     // Создаем начало и конец даты для поиска по всему дню
@@ -53,8 +71,9 @@ export const getSchedulesByDate = async (req, res) => {
     const endDate = new Date(dateString);
     endDate.setHours(23, 59, 59, 999);
 
-    // Поиск элементов расписания на указанную дату
+    // Поиск элементов расписания на указанную дату для конкретного пользователя
     const schedules = await Schedule.find({
+      userId,
       date: {
         $gte: startDate,
         $lte: endDate,
@@ -80,7 +99,19 @@ export const getSchedulesByDate = async (req, res) => {
 // @access  Public
 export const getScheduleById = async (req, res) => {
   try {
-    const schedule = await Schedule.findById(req.params.id);
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "ID пользователя обязателен",
+      });
+    }
+    
+    const schedule = await Schedule.findOne({ 
+      _id: req.params.id,
+      userId
+    });
 
     if (!schedule) {
       return res.status(404).json({
@@ -116,7 +147,16 @@ export const getScheduleById = async (req, res) => {
 // @access  Public
 export const createSchedule = async (req, res) => {
   try {
-    // Создаем новый элемент расписания
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "ID пользователя обязателен",
+      });
+    }
+    
+    // Создаем новый элемент расписания с привязкой к пользователю
     const schedule = await Schedule.create(req.body);
 
     res.status(201).json({
@@ -148,10 +188,24 @@ export const createSchedule = async (req, res) => {
 // @access  Public
 export const updateSchedule = async (req, res) => {
   try {
-    const schedule = await Schedule.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "ID пользователя обязателен",
+      });
+    }
+    
+    // Обновляем только элементы принадлежащие пользователю
+    const schedule = await Schedule.findOneAndUpdate(
+      { _id: req.params.id, userId }, 
+      req.body, 
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     if (!schedule) {
       return res.status(404).json({
@@ -189,8 +243,24 @@ export const updateSchedule = async (req, res) => {
 // @access  Public
 export const deleteSchedule = async (req, res) => {
   try {
-    const schedule = await Schedule.findByIdAndDelete(req.params.id);
-
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "ID пользователя обязателен",
+      });
+    }
+    
+    console.log(`Deleting schedule ${req.params.id} for user ${userId}`);
+    
+    const schedule = await Schedule.findOneAndDelete({
+      _id: req.params.id,
+      userId
+    });
+    
+    console.log(schedule);
+    
     if (!schedule) {
       return res.status(404).json({
         success: false,
@@ -211,12 +281,84 @@ export const deleteSchedule = async (req, res) => {
   }
 };
 
+// @desc    Обновить статус выполнения задачи в расписании
+// @route   PATCH /api/schedules/:id/complete
+// @access  Public
+export const updateScheduleCompletionStatus = async (req, res) => {
+  try {
+    const { completed, userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "ID пользователя обязателен",
+      });
+    }
+    
+    if (completed === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: "Статус выполнения обязателен",
+      });
+    }
+
+    // Находим задачу пользователя
+    const schedule = await Schedule.findOne({
+      _id: req.params.id,
+      userId
+    });
+
+    if (!schedule) {
+      return res.status(404).json({
+        success: false,
+        error: "Элемент расписания не найден",
+      });
+    }
+
+    // Обновляем статус выполнения
+    schedule.completed = completed;
+
+    // Если задача выполнена, устанавливаем время выполнения
+    if (completed) {
+      schedule.completedAt = new Date();
+    } else {
+      schedule.completedAt = null;
+    }
+
+    await schedule.save();
+
+    res.status(200).json({
+      success: true,
+      data: schedule,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      error: "Ошибка сервера при обновлении статуса задачи",
+    });
+  }
+};
+
 // @desc    Получить статистику по расписанию
 // @route   GET /api/schedules/stats
 // @access  Public
 export const getScheduleStats = async (req, res) => {
   try {
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "ID пользователя обязателен",
+      });
+    }
+    
     const stats = await Schedule.aggregate([
+      // Фильтр по userId
+      {
+        $match: { userId }
+      },
       // Группировка по типу и подсчет элементов
       {
         $group: {
@@ -238,8 +380,12 @@ export const getScheduleStats = async (req, res) => {
       },
     ]);
 
-    // Получаем статистику по классам
+    // Получаем статистику по классам для конкретного пользователя
     const classesStat = await Schedule.aggregate([
+      // Фильтр по userId
+      {
+        $match: { userId }
+      },
       // Группировка по классу и подсчет элементов
       {
         $group: {

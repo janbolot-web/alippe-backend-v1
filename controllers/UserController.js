@@ -71,7 +71,6 @@ export const verifyCode = async (req, res) => {
     if (existingUser) {
       // Пользователь уже зарегистрирован, отправьте сообщение об этом
       const UserData = new UserDto(existingUser);
-      console.log("DTo", UserData);
       return res.json({
         success: true,
         data: UserData,
@@ -137,7 +136,6 @@ export const setAvatar = async (req, res) => {
       { expiresIn: "30d" }
     );
     const userData = new UserDto(user);
-    console.log("DTO", userData);
     console.log("Документ успешно обновлен:", user);
 
     res.json({
@@ -173,7 +171,6 @@ export const setUserData = async (req, res) => {
       { expiresIn: "30d" }
     );
     const userData = new UserDto(user);
-    console.log("DTO", userData);
     console.log("Документ успешно обновлен:", user);
     res.json({
       data: {
@@ -214,8 +211,6 @@ export const register = async (req, res) => {
     });
 
     const user = await doc.save();
-    console.log("!!!!!!!!!!!!", user);
-
     const token = jwt.sign(
       {
         _id: user._id,
@@ -295,7 +290,6 @@ export const getMe = async (req, res) => {
       return res.status(404).json({ message: "Пользователь не найден" });
     }
     const UserData = new UserDto(user);
-    console.log(UserData);
     res.json(UserData);
   } catch (e) {
     console.log(e);
@@ -314,7 +308,6 @@ export const getMeMobile = async (req, res) => {
       return res.status(404).json({ message: "Пользователь не найден" });
     }
     const UserData = new UserDto(user);
-    console.log("UserData", UserData);
 
     res.json(UserData);
   } catch (e) {
@@ -329,7 +322,6 @@ export const getUsers = async (req, res) => {
   try {
     const users = await userModel.find().sort({ _id: -1 }).limit(30);
 
-    console.log("users", users);
     res.json(users);
   } catch (e) {
     console.log(e);
@@ -477,7 +469,6 @@ export const checkSubscription = async (req, res) => {
 export const saveAiResponse = async (req, res) => {
   try {
     const { userId, response } = req.body;
-    console.log(response);
 
     const user = await userModel.findById(userId);
     if (!user) {
@@ -523,7 +514,6 @@ export const saveAiResponse = async (req, res) => {
 export const saveAiQuiz = async (req, res) => {
   try {
     const { userId, response } = req.body;
-    console.log(response);
 
     const user = await userModel.findById(userId);
     if (!user) {
