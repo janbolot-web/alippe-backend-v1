@@ -937,12 +937,8 @@ export const getAdminUsersList = async (req, res) => {
 
 export const grantAiAccess = async (req, res) => {
   try {
-    const {
-      userId,
-      planPoint = 50,
-      quizPoint = 20,
-      expiresInDays = 30,
-    } = req.body;
+    const { userId, planPoint, quizPoint, speedReadingPoint, expiresInDays } =
+      req.body;
 
     // Проверка наличия userId
     if (!userId || userId === "") {
@@ -979,12 +975,17 @@ export const grantAiAccess = async (req, res) => {
       const currentQuizPoint =
         user.subscription[aiSubscriptionIndex].quizPoint || 0;
 
+      const currentSpeedReadingPoint =
+        user.subscription[aiSubscriptionIndex].speedReadingPoint || 0;
+
       user.subscription[aiSubscriptionIndex] = {
         ...user.subscription[aiSubscriptionIndex],
         title: "ai",
         isActive: true,
         planPoint: currentPlanPoint + parseInt(planPoint), // Добавляем к существующему значению
         quizPoint: currentQuizPoint + parseInt(quizPoint), // Добавляем к существующему значению
+        speedReadingPoint:
+          currentSpeedReadingPoint + parseInt(speedReadingPoint), // Добавляем к существующему значению
         expiresAt,
       };
     } else {
@@ -994,6 +995,7 @@ export const grantAiAccess = async (req, res) => {
         isActive: true,
         planPoint: parseInt(planPoint),
         quizPoint: parseInt(quizPoint),
+        speedReadingPoint: parseInt(speedReadingPoint),
         expiresAt,
       });
     }

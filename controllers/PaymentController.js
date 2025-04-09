@@ -18,7 +18,7 @@ export const createPayment = async (req, res) => {
     // Исходные данные
     const requestData = {
       pg_order_id: orderId,
-      pg_merchant_id: process.env.PAYBOX_MERCHANT_ID, // Замените на свой merchant ID
+      pg_merchant_id: process.env.PAYBOX_MERCHANT_ID_TEST, // Замените на свой merchant ID
       pg_amount: amount,
       pg_description: description,
       pg_salt: "random string",
@@ -27,7 +27,7 @@ export const createPayment = async (req, res) => {
       pg_success_url: successUrl, // Ваш URL для успешного ответа
       pg_payment_method: paymentMethod,
       pg_timeout_after_payment: "10",
-      // pg_testing_mode: "1",
+      pg_testing_mode: "1",
     };
     const headers = {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -54,7 +54,6 @@ export const createPayment = async (req, res) => {
           // applyDiscount(userId);
         }
       });
-      console.log(jsonResponse);
       res
         .status(200)
         .json({ message: "Ссылка на оплату создано!", data: jsonResponse });
@@ -69,7 +68,14 @@ export const createPayment = async (req, res) => {
 };
 
 // Покупка услуги
-async function purchaseService(data, userId, product, planPoint, quizPoint) {
+async function purchaseService(
+  data,
+  userId,
+  product,
+  planPoint,
+  quizPoint,
+  speedReadingPoint
+) {
   try {
     // const pointsEarned = Math.floor(data.pg_amount[0] / 5); // Например, 1 балл за каждые 5 у.е.
     const pointsEarned = 1; // Например, 1 балл за каждые 5 у.е.
@@ -91,7 +97,13 @@ async function purchaseService(data, userId, product, planPoint, quizPoint) {
     );
 
     if (existingSubscription) {
+      console.log(quizPoint);
       // Если продукт найден, обновляем дату окончания
+      existingSubscription.isActive = true;
+      existingSubscription.planPoint = planPoint;
+      existingSubscription.quizPoint = quizPoint;
+      existingSubscription.speedReadingPoint = speedReadingPoint;
+
       existingSubscription.expiresAt = new Date(
         Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 дней
       );
@@ -103,8 +115,10 @@ async function purchaseService(data, userId, product, planPoint, quizPoint) {
           isActive: true,
           planPoint: planPoint,
           quizPoint: quizPoint,
+          speedReadingPoint: speedReadingPoint,
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 дней
         });
+        console.log("          isActive: true,        ");
       } else {
         updatedUser.subscription.push({
           title: product,
@@ -147,14 +161,21 @@ async function purchaseService(data, userId, product, planPoint, quizPoint) {
 
 export const getStatusPayment = async (req, res) => {
   try {
-    const { paymentId, userId, amount, product, planPoint, quizPoint } =
-      req.body;
+    const {
+      paymentId,
+      userId,
+      amount,
+      product,
+      planPoint,
+      quizPoint,
+      speedReadingPoint,
+    } = req.body;
 
     const API_URL = "https://api.freedompay.kg/get_status3.php";
     const signature = await getSignatureStatus(paymentId);
-
+console.log('getStatusPayment',quizPoint);
     const requestData = {
-      pg_merchant_id: process.env.PAYBOX_MERCHANT_ID,
+      pg_merchant_id: process.env.PAYBOX_MERCHANT_ID_TEST,
       pg_salt: "random string",
       pg_payment_id: paymentId,
       pg_sig: signature,
@@ -181,15 +202,8 @@ export const getStatusPayment = async (req, res) => {
           userId,
           product,
           planPoint,
-          quizPoint
-        );
-        console.log(
-          "purchaseService",
-          jsonResponse,
-          userId,
-          product,
-          planPoint,
-          quizPoint
+          quizPoint,
+          speedReadingPoint
         );
 
         // Обновляем данные пользователя перед отправкой
@@ -241,7 +255,7 @@ async function getSignatureStatus(paymentId) {
 
   //  Исходные данные
   const request = {
-    pg_merchant_id: process.env.PAYBOX_MERCHANT_ID.toString(),
+    pg_merchant_id: process.env.PAYBOX_MERCHANT_ID_TEST.toString(),
     pg_payment_id: paymentId,
     pg_salt: "random string",
   };
@@ -288,7 +302,7 @@ async function getSignatureStatus(paymentId) {
   const signatureArray = [
     "get_status3.php", // Имя скрипта
     ...Object.values(sortedParams),
-    process.env.SECRET_KEY, // Секретный ключ
+    process.env.SECRET_KEY_TEST, // Секретный ключ
   ];
 
   const signature = crypto
@@ -311,7 +325,7 @@ async function getSignature(
   //  Исходные данные
   const request = {
     pg_order_id: orderId,
-    pg_merchant_id: process.env.PAYBOX_MERCHANT_ID,
+    pg_merchant_id: process.env.PAYBOX_MERCHANT_ID_TEST,
     pg_amount: amount,
     pg_description: description,
     pg_salt: "random string",
@@ -319,7 +333,7 @@ async function getSignature(
     pg_payment_method: paymentMethod,
     pg_timeout_after_payment: "10",
     pg_success_url: successUrl,
-    // pg_testing_mode: "1",
+    pg_testing_mode: "1",
   };
   // console.log(request);
 
@@ -364,7 +378,7 @@ async function getSignature(
   const signatureArray = [
     "init_payment.php", // Имя скрипта
     ...Object.values(sortedParams),
-    process.env.SECRET_KEY, // Секретный ключ
+    process.env.SECRET_KEY_TEST, // Секретный ключ
   ];
 
   const signature = crypto

@@ -127,7 +127,7 @@ export const setupSocket = (server) => {
           })),
         };
 
-        console.log("Game statistics:", stats);
+        // console.log("Game statistics:", stats);
         // Здесь можно добавить сохранение статистики в БД или отправку в мониторинг
       } catch (error) {
         console.error("Error in monitoring:", error);

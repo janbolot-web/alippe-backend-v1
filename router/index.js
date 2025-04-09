@@ -7,6 +7,9 @@ import * as CategoryController from "../controllers/CategoryController.js";
 import * as PaymentController from "../controllers/PaymentController.js";
 import * as DiaryController from "../controllers/DiaryController.js";
 import * as ScheduleController from "../controllers/scheduleController.js";
+
+import { SpeedReadingController } from "../controllers/speed-reading-controller.js";
+// import { TimerController } from "../controllers/TimeController.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
 import checkAuth from "../middleware/authMiddleware.js";
 
@@ -153,8 +156,30 @@ router.put("/schedules/:id", ScheduleController.updateSchedule);
 router.delete("/schedules/:id", ScheduleController.deleteSchedule);
 router.get("/schedules/stats", ScheduleController.getScheduleStats);
 
+router.post("/sessions", SpeedReadingController.createSession);
+router.post(
+  "/sessions/:sessionId/students",
+  SpeedReadingController.addStudentResult
+);
+router.get("/sessions", SpeedReadingController.getUserSessions);
+router.get("/sessions/:sessionId", SpeedReadingController.getSessionById);
+router.patch(
+  "/sessions/:sessionId/status",
+  SpeedReadingController.updateSessionStatus
+);
+router.get("/points", SpeedReadingController.getUserRemainingPoints);
+
+router.post(
+  "/generate-educational-content",
+  SpeedReadingController.generateEducationalContent
+);
+
+// router.get("/sessions/:sessionId/timer", TimerController.getTimerStatus);
+// router.post("/sessions/:sessionId/timer/toggle", TimerController.toggleTimer);
+// router.post("/sessions/:sessionId/timer/reset", TimerController.resetTimer);
+
 // app.get("/.well-known/apple-app-site-association", (req, res) => {
-//   res.setHeader("Content-Type", "application/json");
+//   res.setHeader("Content-Type", "application/json");addStudentResult
 //   fs.readFile("path/to/apple-app-site-association", "utf8", (err, data) => {
 //     if (err) {
 //       res.status(500).send("Error loading file");
