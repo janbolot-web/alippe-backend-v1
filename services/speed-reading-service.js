@@ -1,6 +1,7 @@
 import UserDto from "../dtos/user.dto.js";
 import SpeedReadingModel from "../models/speed-reading-model.js";
 import UserModel from "../models/user-model.js";
+import { AIPromptService } from "./ai-prompt-service.js";
 import mongoose from "mongoose";
 
 export const SpeedReadingService = {
@@ -104,193 +105,52 @@ export const SpeedReadingService = {
     }
   },
 
-  // Get all speed reading sessions
+  // Generate educational content
   async generateEducationalContent(data) {
     try {
-      var genre = data.genre;
-      var classLevel = data.classLevel;
-      var questionsCount = data.questionsCount;
-      var language = data.language;
-      var wordCount = data.wordCount;
-
-      // Общие требования для всех жанров
-      var baseRequirements = `
-        Текст должен быть увлекательным, воспитательным и передавать полезный урок.
-        Длина текста — около ${wordCount} слов.
-        После текста добавь ${questionsCount} вопроса с 4 вариантами ответов.
-        Вопросы должны быть связаны с содержанием текста и помогать понять его смысл.
-        Укажи правильный ответ для каждого вопроса.
-        Текст должен быть понятным и интересным для детей ${classLevel}-го класса.
-        
-        Формат ответа:
-        ЗАГОЛОВОК ТЕКСТА
-        -------------
-        Текст
-        
-        Вопросы:
-        1. Вопрос 1
-           A) Вариант A
-           B) Вариант B
-           C) Вариант C
-           D) Вариант D
-           Правильный ответ: A/B/C/D
-      `;
-
-      // Жанр: Жомок / Сказка
-      if (genre == "Жомок (Фантазияга негизделген кызыктуу окуялар.)") {
-        if (language == "Кыргыз") {
-          var prompt = `
-          ${classLevel}-класс окуучулары үчүн кыска жомок түз.
-          Жомок фантазияга негизделип, кызыктуу жана тарбиялык мааниге ээ болсун.
-          ${baseRequirements.replace("Текст", "Жомок")}
-          `;
-        } else {
-          var prompt = `
-          Создай короткую сказку на русском языке для учеников ${classLevel}-го класса.
-          Сказка должна быть фантастической, увлекательной и нести воспитательный смысл.
-          ${baseRequirements.replace("Текст", "Сказка")}
-          `;
-        }
-        return prompt.toString();
+      const { genre, classLevel, questionsCount, language, wordCount } = data;
+      
+      // Fetch the prompt from database or initialize with default prompts if needed
+      let prompts = await AIPromptService.getPromptsByGenreAndLanguage(genre, language);
+      
+      // If no prompts found, initialize default prompts and try again
+      if (!prompts || prompts.length === 0) {
+        await AIPromptService.initializeDefaultPrompts();
+        prompts = await AIPromptService.getPromptsByGenreAndLanguage(genre, language);
       }
-
-      // Жанр: Ыр / Стихотворение
-      else if (genre == "Ыр (Рифмалуу жана ритмдүү текст.)") {
-        if (language == "Кыргыз") {
-          var prompt = `
-          ${classLevel}-класс окуучулары үчүн кыска ыр түз.
-          Ыр рифмалуу, ритмдүү жана тарбиялык мааниге ээ болсун.
-          ${baseRequirements.replace("Текст", "Ыр")}
-          `;
-        } else {
-          var prompt = `
-          Напиши короткое стихотворение на русском языке для учеников ${classLevel}-го класса.
-          Стихотворение должно быть рифмованным, ритмичным и нести воспитательный смысл.
-          ${baseRequirements.replace("Текст", "Стихотворение")}
-          `;
-        }
-        return prompt.toString();
+      
+      // If still no prompts, return an error
+      if (!prompts || prompts.length === 0) {
+        throw new Error(`No prompts found for genre "${genre}" and language "${language}"`);
       }
-
-      // Жанр: Аңгеме / Рассказ
-      else if (genre == "Аңгеме (Кыска, түшүнүктүү окуя.)") {
-        if (language == "Кыргыз") {
-          var prompt = `
-          ${classLevel}-класс окуучулары үчүн кыска аңгеме түз.
-          Аңгеме түшүнүктүү, кызыктуу жана тарбиялык мааниге ээ болсун.
-          ${baseRequirements.replace("Текст", "Аңгеме")}
-          `;
-        } else {
-          var prompt = `
-          Напиши короткий рассказ на русском языке для учеников ${classLevel}-го класса.
-          Рассказ должен быть понятным, интересным и нести воспитательный смысл.
-          ${baseRequirements.replace("Текст", "Рассказ")}
-          `;
-        }
-        return prompt.toString();
+      
+      // Find matching class level or use "all" as fallback
+      let prompt = prompts.find(p => p.classLevel === classLevel.toString());
+      if (!prompt) {
+        prompt = prompts.find(p => p.classLevel === "all");
       }
-
-      // Жанр: Эссе / Эссе
-      else if (genre == "Эссе (Жеке ойлор жана сезимдер жазылган текст.)") {
-        if (language == "Кыргыз") {
-          var prompt = `
-          ${classLevel}-класс окуучулары үчүн кыска эссе түз.
-          Эссе жеке ойлорду жана сезимдерди чагылдырып, тарбиялык мааниге ээ болсун.
-          ${baseRequirements.replace("Текст", "Эссе")}
-          `;
-        } else {
-          var prompt = `
-          Напиши короткое эссе на русском языке для учеников ${classLevel}-го класса.
-          Эссе должно отражать личные мысли и чувства, нести воспитательный смысл.
-          ${baseRequirements.replace("Текст", "Эссе")}
-          `;
-        }
-        return prompt.toString();
+      
+      // If still no prompt found, use the first one
+      if (!prompt && prompts.length > 0) {
+        prompt = prompts[0];
       }
-
-      // Жанр: Сүреттөмө текст / Описательный текст
-      else if (
-        genre == "Сүреттөмө текст (Бир нерсени сүрөттөп берүүчү жазуу.)"
-      ) {
-        if (language == "Кыргыз") {
-          var prompt = `
-          ${classLevel}-класс окуучулары үчүн кыска сүреттөмө текст түз.
-          Текст бир нерсени (мисалы, жаратылыш, буюм) сүрөттөп, тарбиялык мааниге ээ болсун.
-          ${baseRequirements.replace("Текст", "Сүреттөмө текст")}
-          `;
-        } else {
-          var prompt = `
-          Напиши короткий описательный текст на русском языке для учеников ${classLevel}-го класса.
-          Текст должен описывать что-то (например, природу, предмет) и нести воспитательный смысл.
-          ${baseRequirements.replace("Текст", "Описательный текст")}
-          `;
-        }
-        return prompt.toString();
-      }
-
-      // Жанр: Күнүмдүк жашоо баяны / Жизненная история
-      else if (
-        genre == "Күнүмдүк жашоо баяны (Жашоодон алынган кыска окуялар.)"
-      ) {
-        if (language == "Кыргыз") {
-          var prompt = `
-          ${classLevel}-класс окуучулары үчүн кыска күнүмдүк жашоо баянын түз.
-          Баян жашоодон алынган окуяны чагылдырып, тарбиялык мааниге ээ болсун.
-          ${baseRequirements.replace("Текст", "Күнүмдүк жашоо баяны")}
-          `;
-        } else {
-          var prompt = `
-          Напиши короткую жизненную историю на русском языке для учеников ${classLevel}-го класса.
-          История должна быть основана на реальной жизни и нести воспитательный смысл.
-          ${baseRequirements.replace("Текст", "Жизненная история")}
-          `;
-        }
-        return prompt.toString();
-      }
-
-      // Жанр: Кат / Письмо
-      else if (
-        genre == "Кат (Досторго же үй-бүлөгө арналган кыска билдирүүлөр.)"
-      ) {
-        if (language == "Кыргыз") {
-          var prompt = `
-          ${classLevel}-класс окуучулары үчүн кыска кат түз.
-          Кат досторго же үй-бүлөгө арналып, тарбиялык мааниге ээ болсун.
-          ${baseRequirements.replace("Текст", "Кат")}
-          `;
-        } else {
-          var prompt = `
-          Напиши короткое письмо на русском языке для учеников ${classLevel}-го класса.
-          Письмо должно быть адресовано друзьям или семье и нести воспитательный смысл.
-          ${baseRequirements.replace("Текст", "Письмо")}
-          `;
-        }
-        return prompt.toString();
-      }
-
-      // Жанр: Илимий текстер / Научный текст
-      else if (
-        genre ==
-        "Илимий текстер (Илим-билимге байланыштуу маалыматтык текстер.)"
-      ) {
-        if (language == "Кыргыз") {
-          var prompt = `
-          ${classLevel}-класс окуучулары үчүн кыска илимий текст түз.
-          Текст илим-билимге байланыштуу маалымат берип, тарбиялык мааниге ээ болсун.
-          ${baseRequirements.replace("Текст", "Илимий текст")}
-          `;
-        } else {
-          var prompt = `
-          Напиши короткий научный текст на русском языке для учеников ${classLevel}-го класса.
-          Текст должен содержать информацию о науке и нести воспитательный смысл.
-          ${baseRequirements.replace("Текст", "Научный текст")}
-          `;
-        }
-        return prompt.toString();
-      }
-
-      return "Educational content generated successfully";
+      
+      // Build the final prompt with all required parameters
+      let baseRequirements = prompt.baseRequirements || '';
+      baseRequirements = baseRequirements
+        .replace('WORD_COUNT', wordCount)
+        .replace('QUESTIONS_COUNT', questionsCount)
+        .replace('CLASS_LEVEL', classLevel);
+      
+      let promptText = prompt.promptText || '';
+      promptText = promptText.replace('CLASS_LEVEL', classLevel);
+      
+      // Combine prompt text and base requirements
+      const finalPrompt = `${promptText}\n\n${baseRequirements}`;
+      
+      return finalPrompt;
     } catch (error) {
+      console.error("Error generating educational content:", error);
       throw error;
     }
   },

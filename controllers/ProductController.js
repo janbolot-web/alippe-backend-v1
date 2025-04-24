@@ -5,19 +5,39 @@ import categoryModel from "../models/category-model.js";
 
 export const getAllProducts = async (req, res) => {
   try {
-    const { query } = req.query; // Извлекаем параметр поиска
-    const products = await productModel
+    const { query, page = 1, limit = 20 } = req.query; // Get pagination parameters
+    const skip = (page - 1) * limit; // Calculate how many documents to skip
+
+    // Base query
+    const baseQuery = productModel
       .find({})
       .sort({ createdAt: -1 })
-      .populate("category");
+      .populate("category")
+      .skip(skip)
+      .limit(parseInt(limit));
+      
+    // Count total products for pagination info
+    const totalProducts = await productModel.countDocuments();
+    
+    // Get paginated products
+    const products = await baseQuery;
 
     if (query) {
       const filteredProducts = filterProducts(query, products);
-      res.json(filteredProducts);
+      res.json({
+        products: filteredProducts,
+        totalPages: Math.ceil(filteredProducts.length / limit),
+        currentPage: parseInt(page),
+        totalProducts: filteredProducts.length
+      });
     } else {
-      res.json(products); // Возвращаем все товары, если нет запроса
+      res.json({
+        products,
+        totalPages: Math.ceil(totalProducts / limit),
+        currentPage: parseInt(page),
+        totalProducts
+      });
     }
-    // res.status(200).json(products);
   } catch (error) {
     res
       .status(500)
@@ -223,6 +243,146 @@ export const addProductToShop = async (req, res) => {
     res.status(500).json({
       message: "Failed to add product to store",
       error: error.message,
+    });
+  }
+};
+
+export const getProductsByStore = async (req, res) => {
+  try {
+    const { storeId } = req.params;
+
+    // Validate storeId
+    if (!storeId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Store ID is required" 
+      });
+    }
+
+    // Find store
+    const store = await shopModel.findById(storeId);
+    if (!store) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Store not found" 
+      });
+    }
+
+    // Get all products from this store
+    const products = await productModel.find({
+      _id: { $in: store.products }
+    }).populate("category");
+
+    res.status(200).json(products);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch store products", 
+      error: error.message 
+    });
+  }
+};
+
+export const deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Delete the product
+    const deletedProduct = await productModel.findByIdAndDelete(id);
+    
+    if (!deletedProduct) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Product not found" 
+      });
+    }
+    
+    // Also remove reference from store
+    await shopModel.updateMany(
+      { products: id },
+      { $pull: { products: id } }
+    );
+    
+    res.status(200).json({ 
+      success: true, 
+      message: "Product deleted successfully",
+      product: deletedProduct
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to delete product", 
+      error: error.message 
+    });
+  }
+};
+
+export const updateProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // Find and update the product
+    const updatedProduct = await productModel.findByIdAndUpdate(
+      id, 
+      updateData, 
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedProduct) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Product not found" 
+      });
+    }
+    
+    res.status(200).json({ 
+      success: true, 
+      message: "Product updated successfully",
+      product: updatedProduct
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to update product", 
+      error: error.message 
+    });
+  }
+};
+
+export const updateStore = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // Find and update the store
+    const updatedStore = await shopModel.findByIdAndUpdate(
+      id, 
+      updateData, 
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedStore) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Store not found" 
+      });
+    }
+    
+    res.status(200).json({ 
+      success: true, 
+      message: "Store updated successfully",
+      store: updatedStore
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to update store", 
+      error: error.message 
     });
   }
 };

@@ -199,7 +199,7 @@ export const SpeedReadingController = {
       return res.status(200).json({
         success: true,
         content,
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
       });
     } catch (error) {
       console.error("Error generating educational content:", error);

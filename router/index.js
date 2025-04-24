@@ -7,6 +7,7 @@ import * as CategoryController from "../controllers/CategoryController.js";
 import * as PaymentController from "../controllers/PaymentController.js";
 import * as DiaryController from "../controllers/DiaryController.js";
 import * as ScheduleController from "../controllers/scheduleController.js";
+import { AIPromptService } from "../services/ai-prompt-service.js";
 
 import { SpeedReadingController } from "../controllers/speed-reading-controller.js";
 // import { TimerController } from "../controllers/TimeController.js";
@@ -14,6 +15,64 @@ import roleMiddleware from "../middleware/roleMiddleware.js";
 import checkAuth from "../middleware/authMiddleware.js";
 
 const router = new Router();
+
+// Публичный маршрут для инициализации AI промптов без авторизации
+router.get("/init-prompts", async (req, res) => {
+  try {
+    const prompts = await AIPromptService.initializeDefaultPrompts();
+    res.status(200).json({
+      success: true,
+      message: "Default prompts initialized",
+      prompts,
+    });
+  } catch (error) {
+    console.error("Error initializing prompts:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to initialize prompts",
+      error: error.message,
+    });
+  }
+});
+
+// Публичный маршрут для принудительного обновления всех промптов
+router.get("/force-update-prompts", async (req, res) => {
+  try {
+    const prompts = await AIPromptService.forceUpdatePrompts();
+    res.status(200).json({
+      success: true,
+      message: "All prompts have been forcefully updated",
+      count: prompts.length,
+      prompts,
+    });
+  } catch (error) {
+    console.error("Error updating prompts:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update prompts",
+      error: error.message,
+    });
+  }
+});
+
+// Тестовый маршрут для получения всех промптов без авторизации
+router.get("/test-prompts", async (req, res) => {
+  try {
+    const prompts = await AIPromptService.getAllPrompts();
+    res.status(200).json({
+      success: true,
+      count: prompts.length,
+      prompts,
+    });
+  } catch (error) {
+    console.error("Error fetching prompts:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch prompts",
+      error: error.message,
+    });
+  }
+});
 
 router.post("/auth/start-verification", UserController.startVerification);
 router.post("/auth/verify-code", UserController.verifyCode);
@@ -90,6 +149,10 @@ router.get("/getAllShops", ProductController.getAllShops);
 router.post("/createShop", ProductController.createShop);
 router.post("/shop/:storeId/products", ProductController.addProductToShop);
 router.post("/image-upload", ProductController.uploadFile);
+router.get("/getProductsByStore/:storeId", ProductController.getProductsByStore);
+router.delete("/products/:id", ProductController.deleteProduct);
+router.put("/products/:id", ProductController.updateProduct);
+router.put("/stores/:id", ProductController.updateStore);
 router.delete("/stores/:id", ProductController.deleteStore);
 router.get("/getStoreById/:id", ProductController.getStoreById);
 
