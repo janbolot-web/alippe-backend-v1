@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import router from "./router/index.js";
-import aiPromptRouter from "./routes/ai-prompt-routes.js";
+import aiPromptRouter from "./router/ai-prompt-routes.js";
 
 const app = express();
 

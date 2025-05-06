@@ -302,15 +302,3 @@ export const deleteModule = async (req, res) => {
     res.status(404).json({ message: "Не удалось удалить модуль" });
   }
 };
-
-// export const getAuthors = async (req, res) => {
-//     try {
-//       const courseId = req.query.id;
-//       const course = await courseModel.findById(courseId);
-//       const { lessons, title } = course;
-//       console.log(lessons,title);
-//     } catch (error) {
-//       console.log(error);
-//       res.status(404).json({ message: "Не удалось получить видео" });
-//     }
-//   };
