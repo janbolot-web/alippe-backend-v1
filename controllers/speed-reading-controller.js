@@ -1,6 +1,7 @@
 import speedReadingModel from "../models/speed-reading-model.js";
 import { SpeedReadingService } from "../services/speed-reading-service.js";
 import mongoose from "mongoose";
+import { AIPromptService } from "../services/ai-prompt-service.js";
 
 export const SpeedReadingController = {
   // Create a new speed reading session
@@ -191,16 +192,64 @@ export const SpeedReadingController = {
   async generateEducationalContent(req, res) {
     try {
       const data = req.body;
+      const { userId } = req.query;
+      
+      console.log('Получен запрос на генерацию контента с userId:', userId);
 
-      const content = await SpeedReadingService.generateEducationalContent(
-        data
-      );
+      // --- Исправление: не изменяем жанр, так как используем его в оригинальном виде ---
+      // Нам не нужно модифицировать жанр, так как в базе есть промпты для обоих языков
+      // -----------------------------------------------------------------------
 
-      return res.status(200).json({
-        success: true,
-        content,
-        model: "gpt-4o",
-      });
+      // Проверяем userId и пытаемся уменьшить попытки
+      if (userId) {
+        try {
+          // Уменьшаем количество попыток
+          const updatedUser = await SpeedReadingService.decreaseSpeedReadingPoints(userId);
+          
+          if (!updatedUser) {
+            return res.status(400).json({
+              success: false,
+              message: "No speed reading points available",
+            });
+          }
+          
+          
+          // Генерируем контент
+          const content = await SpeedReadingService.generateEducationalContent(data);
+
+          // Устанавливаем явно заголовок Content-Type
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          
+          // Явно сериализуем JSON с помощью JSON.stringify для контроля формата
+          return res.status(200).send(JSON.stringify({
+            success: true,
+            content,
+            model: "gpt-4o",
+            remainingPoints: updatedUser.subscription.find(sub => sub.title === "ai" && sub.isActive === true)?.speedReadingPoint || 0
+          }));
+        } catch (error) {
+          console.error("Ошибка при уменьшении попыток:", error);
+          // Если ошибка не связана с отсутствием попыток, возвращаем общую ошибку
+          if (error.message !== "No available speed reading points") {
+            return res.status(500).json({
+              success: false,
+              message: "An error occurred while processing the request",
+              error: error.message,
+            });
+          }
+          // Иначе возвращаем специфическую ошибку об отсутствии попыток
+          return res.status(400).json({
+            success: false,
+            message: "No speed reading points available",
+          });
+        }
+      } else {
+        // Если userId не предоставлен
+        return res.status(401).json({
+          success: false,
+          message: "User not authenticated",
+        });
+      }
     } catch (error) {
       console.error("Error generating educational content:", error);
 
@@ -326,6 +375,102 @@ export const SpeedReadingController = {
         success: false,
         message: "An error occurred while getting the current time",
         error: error.message,
+      });
+    }
+  },
+
+  // Get all available genres
+  async getGenres(req, res) {
+    try {
+      const genres = {
+        fairy_tale: {
+          kyrg: {
+            name: 'Жомок',
+            full_name: 'Жомок (Фантазияга негизделген кызыктуу окуялар.)',
+            keywords: ['жомок', 'сказка', 'фантазия']
+          },
+          rus: {
+            name: 'Сказка',
+            full_name: 'Жомок (Фантазияга негизделген кызыктуу окуялар.)',
+            keywords: ['сказка', 'жомок', 'фантазия']
+          }
+        },
+        poem: {
+          kyrg: {
+            name: 'Ыр',
+            full_name: 'Ыр (Рифмалуу жана ритмдүү текст.)',
+            keywords: ['ыр', 'стихотворение', 'рифма']
+          },
+          rus: {
+            name: 'Стихотворение',
+            full_name: 'Ыр (Рифмалуу жана ритмдүү текст.)',
+            keywords: ['стихотворение', 'ыр', 'рифма']
+          }
+        },
+        story: {
+          kyrg: {
+            name: 'Аңгеме',
+            full_name: 'Аңгеме (Кыска, түшүнүктүү окуя.)',
+            keywords: ['аңгеме', 'рассказ', 'история']
+          },
+          rus: {
+            name: 'Рассказ',
+            full_name: 'Аңгеме (Кыска, түшүнүктүү окуя.)',
+            keywords: ['рассказ', 'аңгеме', 'история']
+          }
+        },
+        essay: {
+          kyrg: {
+            name: 'Эссе',
+            full_name: 'Эссе (Жеке ойлор жана сезимдер жазылган текст.)',
+            keywords: ['эссе', 'сочинение', 'размышление']
+          },
+          rus: {
+            name: 'Эссе',
+            full_name: 'Эссе (Жеке ойлор жана сезимдер жазылган текст.)',
+            keywords: ['эссе', 'сочинение', 'размышление']
+          }
+        },
+        descriptive: {
+          kyrg: {
+            name: 'Сүреттөмө текст',
+            full_name: 'Сүреттөмө текст (Бир нерсени сүрөттөп берүүчү жазуу.)',
+            keywords: ['сүреттөмө', 'описание', 'сүрөт', 'сүрөттөмө']
+          },
+          rus: {
+            name: 'Описательный текст',
+            full_name: 'Сүреттөмө текст (Бир нерсени сүрөттөп берүүчү жазуу.)',
+            keywords: ['описательный', 'описание', 'сүреттөмө']
+          }
+        }
+      };
+      
+      res.json(genres);
+    } catch (error) {
+      console.error('Error getting genres:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'An error occurred while getting genres',
+        error: error.message 
+      });
+    }
+  },
+
+  // Force update prompts
+  async forceUpdatePrompts(req, res) {
+    try {
+      const prompts = await AIPromptService.forceUpdatePrompts();
+      return res.status(200).json({
+        success: true,
+        message: 'Prompts updated successfully',
+        count: prompts.length
+      });
+    } catch (error) {
+      console.error('Error updating prompts:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'An error occurred while updating prompts',
+        error: error.message
       });
     }
   },

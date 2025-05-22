@@ -3,6 +3,7 @@ import SpeedReadingModel from "../models/speed-reading-model.js";
 import UserModel from "../models/user-model.js";
 import { AIPromptService } from "./ai-prompt-service.js";
 import mongoose from "mongoose";
+import AIPromptModel from "../models/ai-prompt-model.js";
 
 export const SpeedReadingService = {
   // Create a new speed reading session
@@ -109,41 +110,62 @@ export const SpeedReadingService = {
   async generateEducationalContent(data) {
     try {
       const { genre, classLevel, questionsCount, language, wordCount } = data;
+      console.log('Получены параметры:', { genre, classLevel, questionsCount, language, wordCount });
+      
+      // Не нормализуем жанр, используем как есть
+      console.log('Использую оригинальный жанр:', genre);
       
       // Fetch the prompt from database or initialize with default prompts if needed
       let prompts = await AIPromptService.getPromptsByGenreAndLanguage(genre, language);
+      console.log('Найдено промптов по точному совпадению:', prompts?.length || 0);
       
-      // If no prompts found, initialize default prompts and try again
+      // Если не нашли по точному совпадению, возможно у нас проблема с форматом
       if (!prompts || prompts.length === 0) {
+        console.log('Промпты не найдены, инициализируем дефолтные промпты...');
         await AIPromptService.initializeDefaultPrompts();
         prompts = await AIPromptService.getPromptsByGenreAndLanguage(genre, language);
+        console.log('Найдено промптов после инициализации:', prompts?.length || 0);
       }
       
       // If still no prompts, return an error
       if (!prompts || prompts.length === 0) {
+        console.error('Не найдено промптов для жанра:', genre, 'и языка:', language);
         throw new Error(`No prompts found for genre "${genre}" and language "${language}"`);
       }
       
       // Find matching class level or use "all" as fallback
       let prompt = prompts.find(p => p.classLevel === classLevel.toString());
       if (!prompt) {
+        console.log('Ищем промпт с classLevel "all"...');
         prompt = prompts.find(p => p.classLevel === "all");
       }
       
       // If still no prompt found, use the first one
       if (!prompt && prompts.length > 0) {
+        console.log('Используем первый доступный промпт...');
         prompt = prompts[0];
       }
+      
+      if (!prompt) {
+        console.error('Не удалось найти подходящий промпт');
+        throw new Error('No suitable prompt found');
+      }
+      
+      console.log('Выбран промпт:', {
+        genre: prompt.genre,
+        language: prompt.language,
+        classLevel: prompt.classLevel
+      });
       
       // Build the final prompt with all required parameters
       let baseRequirements = prompt.baseRequirements || '';
       baseRequirements = baseRequirements
-        .replace('WORD_COUNT', wordCount)
-        .replace('QUESTIONS_COUNT', questionsCount)
-        .replace('CLASS_LEVEL', classLevel);
+        .replace(/WORD_COUNT/g, wordCount)
+        .replace(/QUESTIONS_COUNT/g, questionsCount)
+        .replace(/CLASS_LEVEL/g, classLevel);
       
       let promptText = prompt.promptText || '';
-      promptText = promptText.replace('CLASS_LEVEL', classLevel);
+      promptText = promptText.replace(/CLASS_LEVEL/g, classLevel);
       
       // Combine prompt text and base requirements
       const finalPrompt = `${promptText}\n\n${baseRequirements}`;
@@ -172,6 +194,33 @@ export const SpeedReadingService = {
 
       return activeSubscription.speedReadingPoint || 0;
     } catch (error) {
+      throw error;
+    }
+  },
+
+  // Decrease speed reading points
+  async decreaseSpeedReadingPoints(userId) {
+    try {
+      const user = await UserModel.findById(userId);
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      const aiSubscription = user.subscription.find(
+        (sub) => sub.title === "ai" && sub.isActive === true
+      );
+
+      if (!aiSubscription || aiSubscription.speedReadingPoint <= 0) {
+        return null;
+      }
+
+      // Уменьшаем количество попыток
+      aiSubscription.speedReadingPoint--;
+      await user.save();
+
+      return user;
+    } catch (error) {
+      console.error("Error decreasing speed reading points:", error);
       throw error;
     }
   },

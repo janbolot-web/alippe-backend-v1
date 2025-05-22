@@ -77,6 +77,10 @@ async function purchaseService(
   speedReadingPoint
 ) {
   try {
+    console.log('purchaseService',
+      planPoint,
+      quizPoint,
+      speedReadingPoint);
     // const pointsEarned = Math.floor(data.pg_amount[0] / 5); // Например, 1 балл за каждые 5 у.е.
     const pointsEarned = 1; // Например, 1 балл за каждые 5 у.е.
 
@@ -100,25 +104,36 @@ async function purchaseService(
       console.log(quizPoint);
       // Если продукт найден, обновляем дату окончания
       existingSubscription.isActive = true;
-      existingSubscription.planPoint = planPoint;
-      existingSubscription.quizPoint = quizPoint;
-      existingSubscription.speedReadingPoint = speedReadingPoint;
+      if (product == 'plan') existingSubscription.planPoint = planPoint;
+      else if (product == 'quiz') existingSubscription.quizPoint = quizPoint;
+      else if (product == 'speedReading') existingSubscription.speedReadingPoint = speedReadingPoint;
 
       existingSubscription.expiresAt = new Date(
         Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 дней
       );
     } else {
       // Если продукт не найден, добавляем новую подписку
-      if (product == "ai") {
+      if (product == "plan") {
         updatedUser.subscription.push({
           title: product,
           isActive: true,
           planPoint: planPoint,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 дней
+        });
+      } else if (product == "quiz") {
+        updatedUser.subscription.push({
+          title: product,
+          isActive: true,
           quizPoint: quizPoint,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 дней
+        });
+      } else if (product == "speedReading") {
+        updatedUser.subscription.push({
+          title: product,
+          isActive: true,
           speedReadingPoint: speedReadingPoint,
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 дней
         });
-        console.log("          isActive: true,        ");
       } else {
         updatedUser.subscription.push({
           title: product,
@@ -173,7 +188,7 @@ export const getStatusPayment = async (req, res) => {
 
     const API_URL = "https://api.freedompay.kg/get_status3.php";
     const signature = await getSignatureStatus(paymentId);
-console.log('getStatusPayment',quizPoint);
+    console.log('getStatusPayment', quizPoint);
     const requestData = {
       pg_merchant_id: process.env.PAYBOX_MERCHANT_ID,
       pg_salt: "random string",
@@ -333,7 +348,7 @@ async function getSignature(
     pg_payment_method: paymentMethod,
     pg_timeout_after_payment: "10",
     pg_success_url: successUrl,
-    // pg_testing_mode: "1",
+    pg_testing_mode: "1",
   };
   // console.log(request);
 

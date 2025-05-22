@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import http from "http";
 import mongoose from "mongoose";
 import app from "./app.js";
-import { setupSocket } from "./src/socket/socket.service.js";
+import { setupSocket } from "./socket/socket.service.js";
 import schedule from "node-schedule";
 import userModel from "./models/user-model.js";
 

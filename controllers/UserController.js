@@ -468,14 +468,14 @@ export const checkSubscription = async (req, res) => {
 // Save response endpoint
 export const saveAiResponse = async (req, res) => {
   try {
-    const { userId, response } = req.body;
+    const { userId, response,product } = req.body;
 
     const user = await userModel.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "Пользователь не найден" });
     }
 
-    const aiSubscription = user.subscription.find((sub) => sub.title === "ai");
+    const aiSubscription = user.subscription.find((sub) => sub.title === product);
 
     // Create new AI response document
     const newAiResponse = new aiResponses({
@@ -513,14 +513,14 @@ export const saveAiResponse = async (req, res) => {
 // Save response endpoint
 export const saveAiQuiz = async (req, res) => {
   try {
-    const { userId, response } = req.body;
+    const { userId, response, product } = req.body;
 
     const user = await userModel.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "Пользователь не найден" });
     }
 
-    const aiSubscription = user.subscription.find((sub) => sub.title === "ai");
+    const aiSubscription = user.subscription.find((sub) => sub.title === product);
 
     // Create new AI response document
     const newQuizResponse = new quizResponses({
@@ -899,12 +899,12 @@ export const getAdminUsersList = async (req, res) => {
     // Построение условия поиска
     const searchCondition = search
       ? {
-          $or: [
-            { name: { $regex: search, $options: "i" } },
-            { phoneNumber: { $regex: search, $options: "i" } },
-            { email: { $regex: search, $options: "i" } },
-          ],
-        }
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { phoneNumber: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+        ],
+      }
       : {};
 
     // Опции сортировки
@@ -1043,12 +1043,12 @@ export const getUsersWithAiSubscription = async (req, res) => {
     // Условие для поиска по имени, email или телефону
     const searchCondition = search
       ? {
-          $or: [
-            { name: { $regex: search, $options: "i" } },
-            { phoneNumber: { $regex: search, $options: "i" } },
-            { email: { $regex: search, $options: "i" } },
-          ],
-        }
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { phoneNumber: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+        ],
+      }
       : {};
 
     // Объединение условий с помощью $and
