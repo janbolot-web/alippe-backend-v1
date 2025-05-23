@@ -348,7 +348,7 @@ async function getSignature(
     pg_payment_method: paymentMethod,
     pg_timeout_after_payment: "10",
     pg_success_url: successUrl,
-    pg_testing_mode: "1",
+    // pg_testing_mode: "1",
   };
   // console.log(request);
 

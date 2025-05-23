@@ -468,7 +468,7 @@ export const checkSubscription = async (req, res) => {
 // Save response endpoint
 export const saveAiResponse = async (req, res) => {
   try {
-    const { userId, response,product } = req.body;
+    const { userId, response, product } = req.body;
 
     const user = await userModel.findById(userId);
     if (!user) {
@@ -940,6 +940,7 @@ export const grantAiAccess = async (req, res) => {
     const { userId, planPoint, quizPoint, speedReadingPoint, expiresInDays } =
       req.body;
 
+
     // Проверка наличия userId
     if (!userId || userId === "") {
       return res
@@ -960,41 +961,80 @@ export const grantAiAccess = async (req, res) => {
     }
 
     // Ищем подписку с title "ai" или создаем новую
-    const aiSubscriptionIndex = user.subscription.findIndex(
-      (sub) => sub.title === "ai"
+    const planSubscriptionIndex = user.subscription.findIndex(
+      (sub) => sub.title === "plan"
     );
-
+    const quizSubscriptionIndex = user.subscription.findIndex(
+      (sub) => sub.title === "quiz"
+    ); const speedReadingSubscriptionIndex = user.subscription.findIndex(
+      (sub) => sub.title === "speedReading"
+    );
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
-    if (aiSubscriptionIndex !== -1) {
+    if (planSubscriptionIndex !== -1) {
       // Обновляем существующую подписку
       // Получаем текущие значения planPoint и quizPoint или используем 0, если они не существуют
+      console.log('planSubscriptionIndex');
+
       const currentPlanPoint =
-        user.subscription[aiSubscriptionIndex].planPoint || 0;
-      const currentQuizPoint =
-        user.subscription[aiSubscriptionIndex].quizPoint || 0;
+        user.subscription[planSubscriptionIndex].planPoint || 0;
 
-      const currentSpeedReadingPoint =
-        user.subscription[aiSubscriptionIndex].speedReadingPoint || 0;
-
-      user.subscription[aiSubscriptionIndex] = {
-        ...user.subscription[aiSubscriptionIndex],
-        title: "ai",
+      user.subscription[planSubscriptionIndex] = {
+        ...user.subscription[planSubscriptionIndex],
+        title: "plan",
         isActive: true,
         planPoint: currentPlanPoint + parseInt(planPoint), // Добавляем к существующему значению
-        quizPoint: currentQuizPoint + parseInt(quizPoint), // Добавляем к существующему значению
-        speedReadingPoint:
-          currentSpeedReadingPoint + parseInt(speedReadingPoint), // Добавляем к существующему значению
         expiresAt,
       };
     } else {
-      // Создаем новую подписку
       user.subscription.push({
-        title: "ai",
+        title: "plan",
         isActive: true,
         planPoint: parseInt(planPoint),
+        expiresAt,
+      });
+
+    }
+
+    if (quizSubscriptionIndex !== -1) {
+      console.log('quizSubscriptionIndex');
+      const currentQuizPoint =
+        user.subscription[quizSubscriptionIndex].quizPoint || 0;
+
+      user.subscription[quizSubscriptionIndex] = {
+        ...user.subscription[quizSubscriptionIndex],
+        title: "quiz",
+        isActive: true,
+        quizPoint: currentQuizPoint + parseInt(quizPoint), // Добавляем к существующему значению
+        expiresAt,
+      };
+    } else {
+      user.subscription.push({
+        title: "quiz",
+        isActive: true,
         quizPoint: parseInt(quizPoint),
+        expiresAt,
+      });
+    }
+
+    if (speedReadingSubscriptionIndex !== -1) {
+      const currentSpeedReadingPoint =
+        user.subscription[speedReadingSubscriptionIndex].speedReadingPoint || 0;
+
+      console.log('speedReadingPoint', speedReadingPoint, currentSpeedReadingPoint);
+      user.subscription[speedReadingSubscriptionIndex] = {
+        ...user.subscription[speedReadingSubscriptionIndex],
+        title: "speedReading",
+        isActive: true,
+        speedReadingPoint: currentSpeedReadingPoint + parseInt(speedReadingPoint), // Добавляем к существующему значению
+        expiresAt,
+      };
+    } else {
+      // Создаем новую подписк
+      user.subscription.push({
+        title: "speedReading",
+        isActive: true,
         speedReadingPoint: parseInt(speedReadingPoint),
         expiresAt,
       });
@@ -1019,7 +1059,6 @@ export const grantAiAccess = async (req, res) => {
 };
 
 // Получение пользователей с AI-подписками
-// Получение пользователей с AI-подписками
 export const getUsersWithAiSubscription = async (req, res) => {
   try {
     const {
@@ -1030,17 +1069,17 @@ export const getUsersWithAiSubscription = async (req, res) => {
       search = "",
     } = req.query;
 
-    // Условие для поиска пользователей с активной AI-подпиской
+    // 🔍 Ищем хотя бы одну активную подписку
     const subscriptionFilter = {
       subscription: {
         $elemMatch: {
-          title: "ai",
           isActive: true,
+          title: { $in: ["plan", "quiz", "speedReading"] },
         },
       },
     };
 
-    // Условие для поиска по имени, email или телефону
+    // 🔍 Условие поиска по имени, email или телефону
     const searchCondition = search
       ? {
         $or: [
@@ -1051,80 +1090,29 @@ export const getUsersWithAiSubscription = async (req, res) => {
       }
       : {};
 
-    // Объединение условий с помощью $and
     const query = search
       ? { $and: [subscriptionFilter, searchCondition] }
       : subscriptionFilter;
 
-    // Опции сортировки
     const sortOptions = {};
+    sortOptions[sortBy] = parseInt(sortOrder);
 
-    // Обработка специальных случаев сортировки
-    if (sortBy.startsWith("subscription.")) {
-      // Для сортировки по полям подписки используем агрегацию
-      const field = sortBy.split(".")[1]; // получаем имя поля после точки
+    const users = await userModel
+      .find(query)
+      .sort(sortOptions)
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
 
-      // Создаем конвейер агрегации
-      const pipeline = [
-        { $match: query },
-        {
-          $addFields: {
-            aiSubscription: {
-              $arrayElemAt: [
-                {
-                  $filter: {
-                    input: "$subscription",
-                    as: "sub",
-                    cond: { $eq: ["$$sub.title", "ai"] },
-                  },
-                },
-                0,
-              ],
-            },
-          },
-        },
-        { $sort: { [`aiSubscription.${field}`]: parseInt(sortOrder) } },
-        { $skip: (parseInt(page) - 1) * parseInt(limit) },
-        { $limit: parseInt(limit) },
-      ];
+    const totalUsers = await userModel.countDocuments(query);
 
-      // Выполняем агрегацию
-      const users = await userModel.aggregate(pipeline);
+    const userDtos = users.map((user) => new UserDto(user));
 
-      // Получаем общее количество пользователей
-      const totalUsers = await userModel.countDocuments(query);
-
-      res.json({
-        users,
-        totalPages: Math.ceil(totalUsers / limit),
-        currentPage: parseInt(page),
-        totalUsers,
-      });
-      return;
-    } else {
-      // Обычная сортировка
-      sortOptions[sortBy] = parseInt(sortOrder);
-
-      // Получение данных с пагинацией
-      const users = await userModel
-        .find(query)
-        .sort(sortOptions)
-        .limit(parseInt(limit))
-        .skip((parseInt(page) - 1) * parseInt(limit));
-
-      // Получаем общее количество пользователей по запросу
-      const totalUsers = await userModel.countDocuments(query);
-
-      // Создаем массив DTO для ответа
-      const userDtos = users.map((user) => new UserDto(user));
-
-      res.json({
-        users: userDtos,
-        totalPages: Math.ceil(totalUsers / limit),
-        currentPage: parseInt(page),
-        totalUsers,
-      });
-    }
+    res.json({
+      users: userDtos,
+      totalPages: Math.ceil(totalUsers / limit),
+      currentPage: parseInt(page),
+      totalUsers,
+    });
   } catch (error) {
     console.error("Error fetching users with AI subscription:", error);
     res.status(500).json({
@@ -1133,6 +1121,7 @@ export const getUsersWithAiSubscription = async (req, res) => {
     });
   }
 };
+
 
 // Получение общей статистики использования AI
 export const getAiUsageStatistics = async (req, res) => {
