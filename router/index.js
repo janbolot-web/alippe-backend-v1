@@ -13,6 +13,7 @@ import { SpeedReadingController } from "../controllers/speed-reading-controller.
 // import { TimerController } from "../controllers/TimeController.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
 import checkAuth from "../middleware/authMiddleware.js";
+import { SpeedReadingService } from "../services/speed-reading-service.js";
 
 const router = new Router();
 
@@ -236,6 +237,8 @@ router.post(
   "/generate-educational-content",
   SpeedReadingController.generateEducationalContent
 );
+
+router.post("/decrease-speed-reading-points", SpeedReadingController.decreaseSpeedReadingPoints);
 
 // router.get("/sessions/:sessionId/timer", TimerController.getTimerStatus);
 // router.post("/sessions/:sessionId/timer/toggle", TimerController.toggleTimer);

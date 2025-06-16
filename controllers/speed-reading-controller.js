@@ -2,6 +2,7 @@ import speedReadingModel from "../models/speed-reading-model.js";
 import { SpeedReadingService } from "../services/speed-reading-service.js";
 import mongoose from "mongoose";
 import { AIPromptService } from "../services/ai-prompt-service.js";
+import userModel from "../models/user-model.js";
 
 export const SpeedReadingController = {
   // Create a new speed reading session
@@ -193,7 +194,7 @@ export const SpeedReadingController = {
     try {
       const data = req.body;
       const { userId } = req.query;
-      
+
       console.log('Получен запрос на генерацию контента с userId:', userId);
 
       // --- Исправление: не изменяем жанр, так как используем его в оригинальном виде ---
@@ -205,21 +206,21 @@ export const SpeedReadingController = {
         try {
           // Уменьшаем количество попыток
           const updatedUser = await SpeedReadingService.decreaseSpeedReadingPoints(userId);
-          
+
           if (!updatedUser) {
             return res.status(400).json({
               success: false,
               message: "No speed reading points available",
             });
           }
-          
-          
+
+
           // Генерируем контент
           const content = await SpeedReadingService.generateEducationalContent(data);
 
           // Устанавливаем явно заголовок Content-Type
           res.setHeader('Content-Type', 'application/json; charset=utf-8');
-          
+
           // Явно сериализуем JSON с помощью JSON.stringify для контроля формата
           return res.status(200).send(JSON.stringify({
             success: true,
@@ -286,6 +287,34 @@ export const SpeedReadingController = {
         message: "An error occurred while checking the remaining points",
         error: error.message,
       });
+    }
+  },
+
+  // Decrease speed reading points
+  async decreaseSpeedReadingPoints(req, res) {
+    const userId = req.body.userId;
+    try {
+      const user = await userModel.findById(userId);
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      const aiSubscription = user.subscription.find(
+        (sub) => sub.title === "speedReading" && sub.isActive === true
+      );
+
+      if (!aiSubscription || aiSubscription.speedReadingPoint <= 0) {
+        return null;
+      }
+
+      // Уменьшаем количество попыток
+      aiSubscription.speedReadingPoint--;
+      await user.save();
+
+      return user;
+    } catch (error) {
+      console.error("Error decreasing speed reading points:", error);
+      throw error;
     }
   },
 
@@ -444,14 +473,14 @@ export const SpeedReadingController = {
           }
         }
       };
-      
+
       res.json(genres);
     } catch (error) {
       console.error('Error getting genres:', error);
-      res.status(500).json({ 
-        success: false, 
+      res.status(500).json({
+        success: false,
         message: 'An error occurred while getting genres',
-        error: error.message 
+        error: error.message
       });
     }
   },
