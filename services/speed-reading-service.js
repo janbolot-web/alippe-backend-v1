@@ -18,11 +18,6 @@ export const SpeedReadingService = {
 
       // Find the active subscription
 
-      const activeSubscription = user.subscription[0];
-
-      if (!activeSubscription || activeSubscription.speedReadingPoint <= 0) {
-        throw new Error("No available speed reading points");
-      }
 
       // Create a new speed reading session
       const session = new SpeedReadingModel({
@@ -42,8 +37,6 @@ export const SpeedReadingService = {
 
       // Decrement user's speed reading points
       user.speedReadingSessions.push(session);
-      activeSubscription.speedReadingPoint =
-        (activeSubscription.speedReadingPoint || 0) - 1;
       await user.save();
       const UserData = new UserDto(user);
 
